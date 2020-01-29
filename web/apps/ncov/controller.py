@@ -1,6 +1,6 @@
 # _*_coding:utf-8_*_
 """
-@ProjectName: AntiSARI
+@ProjectName: Anti2019-nCoV
 @Author:  Javen Yan
 @File: controller.py
 @Software: PyCharm
@@ -9,10 +9,10 @@
 from abc import ABC
 from web.apps.base.controller import BaseRequestHandler
 from web.apps.base.status import StatusCode
-from web.apps.nosari.libs import record_by_province, records, news, overalls
+from web.apps.ncov.libs import record_by_province, records, news, overalls
 
 
-class NoSariHandler(BaseRequestHandler, ABC):
+class NonCoVHandler(BaseRequestHandler, ABC):
 
     async def get(self):
         response = dict(code=StatusCode.success.value)
@@ -28,7 +28,7 @@ class NoSariHandler(BaseRequestHandler, ABC):
         return self.write_json(response)
 
 
-class NoSariOverSeaHandler(BaseRequestHandler, ABC):
+class NonCoVOverSeaHandler(BaseRequestHandler, ABC):
 
     async def get(self):
         response = dict(code=StatusCode.success.value)
@@ -40,7 +40,7 @@ class NoSariOverSeaHandler(BaseRequestHandler, ABC):
         return self.write_json(response)
 
 
-class NoSariNewsHandler(BaseRequestHandler, ABC):
+class NonCoVNewsHandler(BaseRequestHandler, ABC):
 
     async def get(self):
         response = dict()
@@ -55,7 +55,7 @@ class NoSariNewsHandler(BaseRequestHandler, ABC):
         return self.write_json(response)
 
 
-class NoSariOverallHandler(BaseRequestHandler, ABC):
+class NonCoVOverallHandler(BaseRequestHandler, ABC):
 
     async def get(self):
         response = dict()

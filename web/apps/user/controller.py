@@ -1,6 +1,6 @@
 # _*_coding:utf-8_*_
 """
-@ProjectName: AntiSARI
+@ProjectName: Anti2019-nCoV
 @Author:  liyong
 @File: controller.py
 @Software: PyCharm

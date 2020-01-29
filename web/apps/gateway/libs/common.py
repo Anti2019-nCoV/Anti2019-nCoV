@@ -1,7 +1,7 @@
 
 # _*_coding:utf-8_*_
 """
-@ProjectName: AntiSARI
+@ProjectName: Anti2019-nCoV
 @Author:  Javen Yan
 @File: common.py
 @Software: PyCharm

@@ -1,6 +1,6 @@
 # _*_coding:utf-8_*_
 """
-@ProjectName: AntiSARI
+@ProjectName: Anti2019-nCoV
 @Author:  Javen Yan
 @File: __init__.py.py
 @Software: PyCharm
