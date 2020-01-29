@@ -17,9 +17,9 @@ from web.models.form_validate import validate
 
 async def get_constant(self):
     data = {
-        "MsgType": MsgType,
-        "EventType": EventType,
-        "ApplyType": ApplyType
+        "MsgType": MsgType(),
+        "EventType": EventType(),
+        "ApplyType": ApplyType()
     }
     return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": data}
 
@@ -66,8 +66,7 @@ async def delete_auto_replay(self, _id):
 
 
 async def update_auto_replay(self, **kwargs):
-    keys = ['id', 'EventKey', 'EventType', 'ApplyType', 'MsgType', 'EventValue', 'createTime', 'updateTime']
-    state, msg = validate(keys, kwargs)
+    state = kwargs.get('id')
     if not state:
         return {'status': False, 'msg': '数据入参验证失败', "code": StatusCode.params_error.value}
     try:

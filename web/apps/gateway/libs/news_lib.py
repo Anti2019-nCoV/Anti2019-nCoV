@@ -56,8 +56,7 @@ async def delete_new(self, newId):
 
 
 async def update_news(self, **kwargs):
-    keys = ['id', 'Title', 'Description', 'Content', 'Url', 'PicUrl', 'createTime', 'updateTime']
-    state, msg = validate(keys, kwargs)
+    state = kwargs.get('id')
     if not state:
         return {'status': False, 'msg': '数据入参验证失败', "code": StatusCode.params_error.value}
     try:
