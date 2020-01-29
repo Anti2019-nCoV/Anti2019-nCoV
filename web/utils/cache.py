@@ -13,21 +13,22 @@ import time
 import os
 from web.settings import wx_app_id, wx_app_secret
 
+BASE_PATH = os.getcwd()
 ACCESS = 'access_token'
 TICKET = 'jsapi_ticket'
 error_status = [-1, 40001, 40002, 40164, None]
 
 
 def save_cache(content, cache_type):
-    with open(cache_type, 'w+') as f:
+    with open(os.path.join(BASE_PATH, cache_type), 'w+') as f:
         f.write(content)
 
 
 def get_cache(cache_type=None):
-    if not os.path.exists(cache_type):
+    if not os.path.exists(os.path.join(BASE_PATH, cache_type)):
         exec(cache_type + '()')
         return get_cache(cache_type)
-    with open(cache_type) as f:
+    with open(os.path.join(BASE_PATH, cache_type)) as f:
         content = f.read()
     if content:
         token, expires_at = content.split('|')
@@ -42,7 +43,7 @@ def get_cache(cache_type=None):
 
 
 def jsapi_ticket():
-    token = get_cache('access_token')
+    token = get_cache(ACCESS)
     logger.info("刷新jsapi_ticket开始")
     url = "https://api.weixin.qq.com/cgi-bin/ticket/getticket?access_token={}&type=jsapi"\
         .format(token)
@@ -72,7 +73,9 @@ def access_token():
         result = Pool.request('GET', url=url)
         if result.status == 200:
             content = json.loads(result.data.decode())
-            if content.get('errcode') not in error_status:
+            if content.get('errcode') and content.get('errcode') in error_status:
+                logger.debug(f"Fetch Access Data : {content}")
+            else:
                 token = content.get('access_token')
                 expires_in = int(content.get('expires_in'))
                 expires_at = int(time.time())+expires_in
