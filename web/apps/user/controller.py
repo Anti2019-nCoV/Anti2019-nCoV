@@ -9,7 +9,8 @@
 from abc import ABC
 from web.apps.base.controller import BaseRequestHandler
 from web.apps.base.status import StatusCode
-from web.apps.user.libs import get_user, get_company, add_user, add_company, check_in, get_check_in_records
+from web.apps.user.libs import get_user, get_company, add_user, add_company, check_in, get_check_in_records,\
+    get_statistics_checked
 
 
 class CompanyHandler(BaseRequestHandler, ABC):
@@ -84,6 +85,19 @@ class UserCheckInHandler(BaseRequestHandler, ABC):
             result = await get_check_in_records(self, page=page, page_size=page_size, userId=_id)
         else:
             result = await get_check_in_records(self, page=page, page_size=page_size)
+        response['code'] = result['code']
+        response['message'] = result['msg']
+        if result['status']:
+            response['data'] = result['data']
+        return self.write_json(response)
+
+
+class StatisticsCheckInHandler(BaseRequestHandler, ABC):
+
+    async def get(self):
+        response = dict()
+        enterprise_id = self.get_argument('enterpriseId', None)
+        result = await get_statistics_checked(self, enterprise_id=enterprise_id)
         response['code'] = result['code']
         response['message'] = result['msg']
         if result['status']:

@@ -8,14 +8,17 @@
 """
 from logzero import logger
 
-from web.models.databases import User, Company, CheckInRecordModel
+from web.models.databases import User, Company, CheckInRecordModel, StatusEnum
 from web.models.form_validate import validate
 from web.apps.base.status import StatusCode, UserCenterStatusCode
 from web.utils.date2json import to_json
 from datetime import datetime
 
+from operator import itemgetter
+from itertools import groupby
 
-async def get_user(self, enterprise_id, user_id=None):
+
+async def get_user(self, enterprise_id=None, user_id=None):
     if user_id:
         rows = [User.by_id(user_id)]
     elif enterprise_id:
@@ -59,10 +62,14 @@ async def add_user(self, **kwargs):
         employee_id = kwargs.get('employeeId')
         if employee_id:
             employee_id = employee_id.stirp()
+        avatar_pic = kwargs.get('avatarPic')
+        if avatar_pic:
+            avatar_pic = avatar_pic.strip()
         user = User(
             userName=kwargs.get('userName').strip(),
             employeeId=employee_id,
             userPhone=kwargs.get('userPhone').strip(),
+            avatarPic=avatar_pic,
             createTime=datetime.now()
         )
         company.user += [user]
@@ -118,12 +125,12 @@ async def check_in(self, **kwargs):
     state, msg = validate(keys, kwargs)
     if not state:
         return {'status': False, 'msg': '数据入参验证失败', "code": StatusCode.params_error.value}
-    user = self.current_user
-    if not user:
+    user_info = self.current_user
+    if not user_info:
         return {'status': False, 'msg': '您需要先登录才能签到', "code": UserCenterStatusCode.access_error.value}
     try:
         ch = CheckInRecordModel(
-            userId=user.id,
+            userId=user_info.id,
             province=kwargs.get('province'),
             city=kwargs.get('city'),
             address=kwargs.get('address'),
@@ -146,3 +153,53 @@ async def get_check_in_records(self, page=1, page_size=10, userId=None):
     else:
         rows = CheckInRecordModel.paginate(userId, page, page_size)
     return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": to_json(rows)}
+
+
+def get_length(generator):
+    if hasattr(generator, "__len__"):
+        return len(generator)
+    else:
+        return sum(1 for _ in generator)
+
+
+async def get_statistics_checked(self, enterprise_id=None):
+    """统计数据"""
+    if enterprise_id:
+        users = User.by_enterprise_id(enterprise_id)    # 根据企业搜索用户
+    else:
+        users = User.all()
+    checked_data = []
+    for user in users:
+        checked_models = CheckInRecordModel.by_user_id_today(user.id)
+        if checked_models:
+            checked_data.extend(to_json([checked_models]))
+
+    checked_data.sort(key=itemgetter('province'))   # 按省排序
+    logger.debug(f'checked_data: {checked_data}')
+    result = []
+    for province, items in groupby(checked_data, key=itemgetter('province')):   # 按省分割
+        isolated_count = 0
+        suspected_count = 0
+        confirmed_count = 0
+        items = list(items)
+        items.sort(key=itemgetter('status'))  # 按健康状态分割
+        logger.debug(f'items sort by {province}: {items}')
+        for status, sub_items in groupby(items, key=itemgetter('status')):
+            length = get_length(sub_items)
+            if status == StatusEnum.isolated:
+                isolated_count = length
+            elif status == StatusEnum.suspected:
+                suspected_count = length
+            elif status == StatusEnum.confirmed:
+                confirmed_count = length
+
+        checked_count = get_length(items)  # 打卡数量
+        result.append({
+            'province': province, 'checked_count': checked_count, 'isolated_count': isolated_count,
+            'suspected_count': suspected_count, 'confirmed_count': confirmed_count
+        })
+
+    return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": result}
+
+
+

@@ -6,9 +6,9 @@
 @Software: PyCharm
 @Time :    2019/12/5 上午10:48
 """
-from datetime import datetime
+from datetime import datetime, date
 
-from sqlalchemy import Column, Integer, String, TEXT, Table, ForeignKey, Boolean, Enum, DateTime, and_
+from sqlalchemy import Column, Integer, String, TEXT, Table, ForeignKey, Boolean, Enum, DateTime, and_, cast, DATE
 from sqlalchemy.orm import relationship
 from web.models.dbSession import ModelBase, dbSession
 import time
@@ -352,6 +352,8 @@ class User(ModelBase):
     openId = Column(String(128), unique=True, comment="微信登录openid")
     company = relationship("Company", secondary=CompanyUser)
     createTime = Column(DateTime, nullable=True, comment="创建时间")
+    # checkedTime = Column(DateTime, nullable=True, comment="签到时间")   # 可用来统计当天签到情况
+    # status = Column(Integer, default=0, comment="状态")                 # 最新状态，用于统计
     updateTime = Column(DateTime, nullable=True, comment="更新时间")
 
     @classmethod
@@ -428,6 +430,15 @@ class CheckInRecordModel(ModelBase):
         start = page_size * (page - 1)
         end = page * page_size
         return dbSession.query(cls).filter_by(userId=kid).order_by(-cls.createTime).slice(start, end).all()
+
+    @classmethod
+    def by_user_id_today(cls, kid):
+        """查询当天的最新数据"""
+        dat = date.today()
+        return dbSession.query(cls).filter(and_(
+            CheckInRecordModel.userId == kid,
+            cast(CheckInRecordModel.createTime, DATE) == dat)
+        ).order_by(cls.createTime.desc()).first()
 
     @classmethod
     def all(cls):
