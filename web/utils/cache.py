@@ -72,7 +72,7 @@ def access_token():
         result = Pool.request('GET', url=url)
         if result.status == 200:
             content = json.loads(result.data.decode())
-            if content.get('errcode') in error_status:
+            if content.get('errcode') not in error_status:
                 token = content.get('access_token')
                 expires_in = int(content.get('expires_in'))
                 expires_at = int(time.time())+expires_in
