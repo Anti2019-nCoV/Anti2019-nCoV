@@ -33,13 +33,13 @@ class MiddleHandler(tornado.web.RequestHandler, ABC):
         except AttributeError:
             self.middleware_list = MIDDLEWARE_LIST
 
-    def prepare(self):
+    async def prepare(self):
         if self.request.method == "OPTIONS":
             return
         for middleware in self.middleware_list:
             m_path, m_class = middleware.rsplit('.', maxsplit=1)
             mod = importlib.import_module(m_path)
-            getattr(mod, m_class).process_request(self)
+            await getattr(mod, m_class).process_request(self)
 
     def on_finish(self):
         for middleware in self.middleware_list:

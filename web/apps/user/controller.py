@@ -14,6 +14,8 @@ from web.apps.user.libs import get_user, get_company, add_user, add_company, che
 
 class CompanyHandler(BaseRequestHandler, ABC):
 
+    middleware_list = ['web.middleware.middleware.WxMiddleware']
+
     async def get(self):
         response = dict(code=StatusCode.success.value)
         name = self.get_argument('companyName', None)
@@ -38,6 +40,8 @@ class CompanyHandler(BaseRequestHandler, ABC):
 
 class UserHandler(BaseRequestHandler, ABC):
 
+    middleware_list = ['web.middleware.middleware.WxMiddleware']
+
     async def get(self):
         response = dict(code=StatusCode.success.value)
         _id = self.get_argument('id', None)
@@ -61,6 +65,8 @@ class UserHandler(BaseRequestHandler, ABC):
 
 
 class UserCheckInHandler(BaseRequestHandler, ABC):
+
+    middleware_list = ['web.middleware.middleware.WxMiddleware']
 
     async def post(self):
         response = dict()

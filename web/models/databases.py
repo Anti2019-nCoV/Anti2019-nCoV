@@ -356,6 +356,10 @@ class User(ModelBase):
         return dbSession.query(cls).filter_by(id=kid).first()
 
     @classmethod
+    def by_openid(cls, kid):
+        return dbSession.query(cls).filter_by(openid=kid).first()
+
+    @classmethod
     def all(cls):
         return dbSession.query(cls).all()
 

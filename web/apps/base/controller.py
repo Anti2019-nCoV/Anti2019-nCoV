@@ -42,8 +42,8 @@ class BaseRequestHandler(CorsMiddleware, MiddleHandler, ABC):
         super(BaseRequestHandler, self).initialize()
         self.db = dbSession
 
-    def prepare(self):
-        super(BaseRequestHandler, self).prepare()
+    async def prepare(self):
+        await super(BaseRequestHandler, self).prepare()
 
     def write_json(self, data):
         assert isinstance(data, dict)
