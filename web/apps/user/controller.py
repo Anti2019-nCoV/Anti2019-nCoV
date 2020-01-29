@@ -18,11 +18,8 @@ class CompanyHandler(BaseRequestHandler, ABC):
 
     async def get(self):
         response = dict(code=StatusCode.success.value)
-        name = self.get_argument('companyName', None)
-        if name:
-            result = await get_company(self, name)
-        else:
-            result = await get_company(self)
+        enterprise_id = self.get_argument('enterpriseId', None)
+        result = await get_company(self, enterprise_id)
         response['code'] = result['code']
         response['message'] = result['msg']
         if result['status']:
@@ -35,6 +32,8 @@ class CompanyHandler(BaseRequestHandler, ABC):
         result = await add_company(self, **payload)
         response['code'] = result['code']
         response['msg'] = result['msg']
+        if result['status']:
+            response['data'] = result['data']
         return self.write_json(response)
 
 
@@ -44,11 +43,9 @@ class UserHandler(BaseRequestHandler, ABC):
 
     async def get(self):
         response = dict(code=StatusCode.success.value)
-        _id = self.get_argument('id', None)
-        if _id:
-            result = await get_user(self, _id)
-        else:
-            result = await get_user(self)
+        enterprise_id = self.get_argument('enterpriseId', None)
+        user_id = self.get_argument('userId', None)
+        result = await get_user(self, enterprise_id, user_id)
         response['code'] = result['code']
         response['message'] = result['msg']
         if result['status']:
@@ -61,6 +58,8 @@ class UserHandler(BaseRequestHandler, ABC):
         result = await add_user(self, **payload)
         response['code'] = result['code']
         response['msg'] = result['msg']
+        if result['status']:
+            response['data'] = result['data']
         return self.write_json(response)
 
 
