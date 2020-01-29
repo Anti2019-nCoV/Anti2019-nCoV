@@ -34,7 +34,7 @@ class GetUserInfo(BaseRequestHandler, ABC):
     async def get(self):
         response = dict()
         access_token = self.request.headers.get('access_token', None)
-        open_id = self.get_argument('openid', None)
+        open_id = self.request.headers.get('openid', None)
         if not access_token:
             response['code'] = StatusCode.miss_params_error.value
             response['message'] = "access_token参数缺失"

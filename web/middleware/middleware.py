@@ -20,7 +20,7 @@ class WxMiddleware(Middleware):
     async def process_request(self):
         logger.debug("用户认证中间件， 正在认证")
         access_token = self.request.headers.get('access_token', None)
-        openid = self.get_argument('openid', None)
+        openid = self.request.headers('openid', None)
         if not access_token and not openid:
             kw = {"code": 10006, "message": "用户认证数据缺失"}
             return self.finish(kw)
