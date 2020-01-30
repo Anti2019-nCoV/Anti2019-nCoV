@@ -55,21 +55,15 @@ async def gen_signature(self, **payload):
     if not state:
         return {'status': False, 'msg': '数据入参验证失败', "code": StatusCode.params_error.value}
     else:
-        sort_data = dict(noncestr=str(uuid4()),
-                         ticket=get_cache(TICKET),
+        sort_data = dict(nonceStr=str(uuid4()),
+                         jsapi_ticket=get_cache(TICKET),
                          timestamp=str(int(time.time())),
                          url=payload.get('url').replace('#', ''))
-        sorted(sort_data.keys())
-        str1 = ""
-        for k, v in sort_data.items():
-            str1 += f"{k}={v}&"
-        if str1.endswith('&'):
-            str1 = str1[:-1]
-        sha1 = hashlib.sha1(str1.encode())
-        hashcode = sha1.hexdigest()
+        str1 = '&'.join(['%s=%s' % (key.lower(), sort_data[key]) for key in sorted(sort_data)])
+        hashcode = hashlib.sha1(str1.encode('utf-8')).hexdigest()
         content = {
             "timestamp": sort_data.get('timestamp'),
-            "nonceStr": sort_data.get('noncestr'),
+            "nonceStr": sort_data.get('nonceStr'),
             "signature": hashcode,
             "appId": wx_app_id
         }
