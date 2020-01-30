@@ -6,9 +6,9 @@
 @Software: PyCharm
 @Time :    2019/12/5 上午10:48
 """
-from datetime import datetime
+from datetime import datetime, date
 
-from sqlalchemy import Column, Integer, String, TEXT, Table, ForeignKey, Boolean, Enum, DateTime, and_
+from sqlalchemy import Column, Integer, String, TEXT, Table, ForeignKey, Boolean, Enum, DateTime, and_, or_, cast, DATE
 from sqlalchemy.orm import relationship
 from web.models.dbSession import ModelBase, dbSession
 import time
@@ -281,12 +281,20 @@ class Company(ModelBase):
     companyAddr = Column(String(128), comment="公司地址")
     logoPic = Column(String(255), nullable=True, comment="logo图片地址")
     user = relationship("User", secondary=CompanyUser)
-    createTime = Column(DateTime, nullable=True, comment="创建时间")
+    createTime = Column(DateTime, default=datetime.now(), comment="创建时间")
     updateTime = Column(DateTime, nullable=True, comment="更新时间")
 
     @classmethod
     def by_id(cls, kid):
         return dbSession.query(cls).filter_by(id=kid).first()
+
+    @classmethod
+    def by_user_id(cls, kid):
+        return dbSession.query(cls).filter(Company.user.any(User.id == kid)).all()
+
+    @classmethod
+    def by_name(cls, name):
+        return dbSession.query(cls).filter(Company.companyName == name).first()
 
     @classmethod
     def all(cls):
@@ -315,11 +323,6 @@ class Company(ModelBase):
             except Exception as e:
                 logger.error("Insert Error " + str(e))
 
-    @classmethod
-    def by_name(cls, name):
-        return dbSession.query(cls)\
-            .filter(Company.companyName.like('%{}%'.format(name))).all()
-
     def to_dict(self):
         return {
             "companyName": self.companyName,
@@ -342,13 +345,16 @@ class User(ModelBase):
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     userName = Column(String(32), comment="姓名")
+    employeeId = Column(String(32), nullable=True, comment="工号")
     userPhone = Column(String(32), comment="手机")
     avatarPic = Column(String(255), nullable=True, comment="头像地址")
     is_admin = Column(Boolean, default=False, comment="是否是管理者")     # 注册企业的是管理者
-    openId = Column(String(128), comment="微信登录openid")
-    # status = Column(Enum(StatusEnum), default=StatusEnum.normal, comment="健康状况")
+    openId = Column(String(128), unique=True, comment="微信登录openid")
     company = relationship("Company", secondary=CompanyUser)
-    createTime = Column(DateTime, nullable=True, comment="创建时间")
+    checkedTime = Column(DateTime, nullable=True, comment="签到时间")       # 可用来统计当天签到情况
+    checkedAddr = Column(String(32), comment="最新签到所在地区")
+    checkedStatus = Column(Integer, default=StatusEnum.normal, comment="状态")    # 最新签到状态，用于统计
+    createTime = Column(DateTime, default=datetime.now(), comment="创建时间")
     updateTime = Column(DateTime, nullable=True, comment="更新时间")
 
     @classmethod
@@ -357,7 +363,28 @@ class User(ModelBase):
 
     @classmethod
     def by_openid(cls, kid):
-        return dbSession.query(cls).filter_by(openid=kid).first()
+        return dbSession.query(cls).filter_by(openId=kid).first()
+
+    @classmethod
+    def by_enterprise_id(cls, kid):
+        """根据企业id查询所有用户"""
+        return dbSession.query(cls).filter(User.company.any(Company.id == kid)).all()
+
+    @classmethod
+    def by_id_checked_today(cls, kid):
+        """查询当天签到的最新数据"""
+        dat = date.today()
+        return dbSession.query(cls).filter(and_(
+            User.id == kid, cast(User.checkedTime, DATE) == dat)
+        ).first()
+
+    @classmethod
+    def by_id_unchecked_today(cls, kid):
+        """查询当天未签到的数据"""
+        dat = date.today()
+        return dbSession.query(cls).filter(and_(
+            User.id == kid, or_(cast(User.checkedTime, DATE) < dat, User.checkedTime.is_(None)))
+        ).first()
 
     @classmethod
     def all(cls):
@@ -387,19 +414,17 @@ class User(ModelBase):
             except Exception as e:
                 logger.error("Insert Error " + str(e))
 
-    @classmethod
-    def by_name(cls, name):
-        return dbSession.query(cls)\
-            .filter(User.userName.like('%{}%'.format(name))).all()
-
     def to_dict(self):
         return {
             "userName": self.userName,
+            "employeeId": self.employeeId,
             "userPhone": self.userPhone,
             "avatarPic": self.avatarPic,
             "is_admin": self.is_admin,
             "openId": self.openId,
-            # "status": self.status,
+            "checkedTime": self.checkedTime,
+            "checkedAddr": self.checkedAddr,
+            "checkedStatus": self.checkedStatus,
             "createTime": self.createTime,
             "updateTime": self.updateTime
         }
@@ -408,14 +433,14 @@ class User(ModelBase):
 class CheckInRecordModel(ModelBase):
     __tablename__ = 'check_in_record'
     id = Column(Integer, autoincrement=True, primary_key=True)
-    userId = Column(String(64), comment="用户ID")
-    enterpriseId = Column(String(64), comment="企业id")
+    userId = Column(ForeignKey('user.id'), comment="用户ID")     # 关联用户
+    province = Column(String(64), comment="省")
+    city = Column(String(64), comment="市")
     address = Column(String(255), nullable=True, comment="地址")
     latitude = Column(String(64), comment="纬度")
     longitude = Column(String(64), comment="经度")
     status = Column(Integer, default=0, comment="状态")
     createTime = Column(DateTime, nullable=True, comment="创建时间", default=datetime.now)
-    updateTime = Column(DateTime, nullable=True, comment="更新时间")
 
     @classmethod
     def by_id(cls, kid):
@@ -426,6 +451,15 @@ class CheckInRecordModel(ModelBase):
         start = page_size * (page - 1)
         end = page * page_size
         return dbSession.query(cls).filter_by(userId=kid).order_by(-cls.createTime).slice(start, end).all()
+
+    @classmethod
+    def by_user_id_today(cls, kid):
+        """查询当天的最新数据"""
+        dat = date.today()
+        return dbSession.query(cls).filter(and_(
+            CheckInRecordModel.userId == kid,
+            cast(CheckInRecordModel.createTime, DATE) == dat)
+        ).order_by(cls.createTime.desc()).first()
 
     @classmethod
     def all(cls):
@@ -445,21 +479,16 @@ class CheckInRecordModel(ModelBase):
         if self.createTime:
             return self.createTime.strftime('%Y-%m-%d %H:%M:%S')
 
-    @property
-    def _updateTime(self):
-        if self.updateTime:
-            return self.updateTime.strftime('%Y-%m-%d %H:%M:%S')
-
     def to_dict(self):
         return {
             "userId": self.userId,
-            "enterpriseId": self.enterpriseId,
+            "province": self.province,
+            "city": self.city,
             "address": self.address,
             "latitude": self.latitude,
             "longitude": self.longitude,
             "status": self.status,
-            "createTime": self._createTime,
-            "updateTime": self.updateTime
+            "createTime": self._createTime
         }
 
 
