@@ -8,7 +8,7 @@
 """
 from datetime import datetime, date
 
-from sqlalchemy import Column, Integer, String, TEXT, Table, ForeignKey, Boolean, Enum, DateTime, and_, cast, DATE
+from sqlalchemy import Column, Integer, String, TEXT, Table, ForeignKey, Boolean, Enum, DateTime, and_, or_, cast, DATE
 from sqlalchemy.orm import relationship
 from web.models.dbSession import ModelBase, dbSession
 import time
@@ -281,7 +281,7 @@ class Company(ModelBase):
     companyAddr = Column(String(128), comment="公司地址")
     logoPic = Column(String(255), nullable=True, comment="logo图片地址")
     user = relationship("User", secondary=CompanyUser)
-    createTime = Column(DateTime, nullable=True, comment="创建时间")
+    createTime = Column(DateTime, default=datetime.now(), comment="创建时间")
     updateTime = Column(DateTime, nullable=True, comment="更新时间")
 
     @classmethod
@@ -290,7 +290,7 @@ class Company(ModelBase):
 
     @classmethod
     def by_user_id(cls, kid):
-        return dbSession.query(cls).filter(User.id == kid).all()
+        return dbSession.query(cls).filter(Company.user.any(User.id == kid)).all()
 
     @classmethod
     def by_name(cls, name):
@@ -351,9 +351,10 @@ class User(ModelBase):
     is_admin = Column(Boolean, default=False, comment="是否是管理者")     # 注册企业的是管理者
     openId = Column(String(128), unique=True, comment="微信登录openid")
     company = relationship("Company", secondary=CompanyUser)
-    createTime = Column(DateTime, nullable=True, comment="创建时间")
-    # checkedTime = Column(DateTime, nullable=True, comment="签到时间")   # 可用来统计当天签到情况
-    # status = Column(Integer, default=0, comment="状态")                 # 最新状态，用于统计
+    checkedTime = Column(DateTime, nullable=True, comment="签到时间")       # 可用来统计当天签到情况
+    checkedAddr = Column(String(32), comment="最新签到所在地区")
+    checkedStatus = Column(Integer, default=StatusEnum.normal, comment="状态")    # 最新签到状态，用于统计
+    createTime = Column(DateTime, default=datetime.now(), comment="创建时间")
     updateTime = Column(DateTime, nullable=True, comment="更新时间")
 
     @classmethod
@@ -366,7 +367,24 @@ class User(ModelBase):
 
     @classmethod
     def by_enterprise_id(cls, kid):
-        return dbSession.query(cls).filter(Company.id == kid).all()
+        """根据企业id查询所有用户"""
+        return dbSession.query(cls).filter(User.company.any(Company.id == kid)).all()
+
+    @classmethod
+    def by_id_checked_today(cls, kid):
+        """查询当天签到的最新数据"""
+        dat = date.today()
+        return dbSession.query(cls).filter(and_(
+            User.id == kid, cast(User.checkedTime, DATE) == dat)
+        ).first()
+
+    @classmethod
+    def by_id_unchecked_today(cls, kid):
+        """查询当天未签到的数据"""
+        dat = date.today()
+        return dbSession.query(cls).filter(and_(
+            User.id == kid, or_(cast(User.checkedTime, DATE) < dat, User.checkedTime.is_(None)))
+        ).first()
 
     @classmethod
     def all(cls):
@@ -404,6 +422,9 @@ class User(ModelBase):
             "avatarPic": self.avatarPic,
             "is_admin": self.is_admin,
             "openId": self.openId,
+            "checkedTime": self.checkedTime,
+            "checkedAddr": self.checkedAddr,
+            "checkedStatus": self.checkedStatus,
             "createTime": self.createTime,
             "updateTime": self.updateTime
         }

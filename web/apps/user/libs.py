@@ -69,8 +69,7 @@ async def add_user(self, **kwargs):
             userName=kwargs.get('userName').strip(),
             employeeId=employee_id,
             userPhone=kwargs.get('userPhone').strip(),
-            avatarPic=avatar_pic,
-            createTime=datetime.now()
+            avatarPic=avatar_pic
         )
         company.user += [user]
         self.db.add(user)
@@ -100,13 +99,11 @@ async def add_company(self, **kwargs):
         user = User(
             userName=kwargs.get('userName').strip(),
             userPhone=kwargs.get('userPhone').strip(),
-            is_admin=True,
-            createTime=datetime.now()
+            is_admin=True
         )
         company = Company(
             companyName=kwargs.get('companyName').strip(),
-            companyAddr=kwargs.get('companyAddr').strip(),
-            createTime=datetime.now()
+            companyAddr=kwargs.get('companyAddr').strip()
         )
         company.user = [user]
         self.db.add(user)
@@ -121,6 +118,7 @@ async def add_company(self, **kwargs):
 
 
 async def check_in(self, **kwargs):
+    """员工签到"""
     keys = ['province', 'city', 'address', 'latitude', 'longitude', 'status']
     state, msg = validate(keys, kwargs)
     if not state:
@@ -138,6 +136,11 @@ async def check_in(self, **kwargs):
             longitude=kwargs.get('longitude'),
             status=kwargs.get('status')
         )
+        self.db.query(User).filter_by(id=user_info.id).update({
+            'checkedTime': datetime.now(),
+            'checkedAddr': kwargs.get('province'),
+            'checkedStatus': kwargs.get('status')
+        })      # 更新用户表的签到状态
         self.db.add(ch)
         self.db.commit()
         return {'status': True, 'msg': '签到成功', "code": StatusCode.success.value}
@@ -163,28 +166,26 @@ def get_length(generator):
 
 
 async def get_statistics_checked(self, enterprise_id=None):
-    """统计数据"""
+    """统计签到数据"""
     if enterprise_id:
         users = User.by_enterprise_id(enterprise_id)    # 根据企业搜索用户
     else:
         users = User.all()
     checked_data = []
     for user in users:
-        checked_models = CheckInRecordModel.by_user_id_today(user.id)
+        checked_models = User.by_id_checked_today(user.id)
         if checked_models:
             checked_data.extend(to_json([checked_models]))
-
-    checked_data.sort(key=itemgetter('province'))   # 按省排序
-    logger.debug(f'checked_data: {checked_data}')
-    result = []
-    for province, items in groupby(checked_data, key=itemgetter('province')):   # 按省分割
+    checked_data.sort(key=itemgetter('checkedAddr'))   # 按省排序
+    checked = []
+    for checked_address, items in groupby(checked_data, key=itemgetter('checkedAddr')):   # 按省分割
         isolated_count = 0
         suspected_count = 0
         confirmed_count = 0
         items = list(items)
-        items.sort(key=itemgetter('status'))  # 按健康状态分割
-        logger.debug(f'items sort by {province}: {items}')
-        for status, sub_items in groupby(items, key=itemgetter('status')):
+        items.sort(key=itemgetter('checkedStatus'))  # 按健康状态分割
+        logger.debug(f'items sort by {checked_address}: {items}')
+        for status, sub_items in groupby(items, key=itemgetter('checkedStatus')):
             length = get_length(sub_items)
             if status == StatusEnum.isolated:
                 isolated_count = length
@@ -194,12 +195,36 @@ async def get_statistics_checked(self, enterprise_id=None):
                 confirmed_count = length
 
         checked_count = get_length(items)  # 打卡数量
-        result.append({
-            'province': province, 'checked_count': checked_count, 'isolated_count': isolated_count,
+        checked.append({
+            'checked_address': checked_address, 'checked_count': checked_count, 'isolated_count': isolated_count,
             'suspected_count': suspected_count, 'confirmed_count': confirmed_count
         })
 
-    return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": result}
+    return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": checked}
 
 
+async def get_statistics_unchecked(self, enterprise_id=None):
+    """统计未签到数据"""
+    if enterprise_id:
+        print(enterprise_id)
+        users = User.by_enterprise_id(enterprise_id)    # 根据企业搜索用户
+    else:
+        users = User.all()
+    logger.debug(f'unchecked users: {users} count: {len(users)}')
+    unchecked_data = []
+    for user in users:
+        unchecked_models = User.by_id_unchecked_today(user.id)
+        if unchecked_models:
+            logger.debug(f'unchecked_models userid: {user.id}')
+            unchecked_data.extend(to_json([unchecked_models]))
+
+    unchecked = []
+    for uncheck_ in unchecked_data:
+        unchecked.append({
+            'userName': uncheck_.get('userName'),
+            'employeeId': uncheck_.get('employeeId'),
+            'userPhone': uncheck_.get('userPhone')
+        })
+
+    return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": unchecked}
 

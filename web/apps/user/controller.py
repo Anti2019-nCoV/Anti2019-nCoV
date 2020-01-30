@@ -10,7 +10,7 @@ from abc import ABC
 from web.apps.base.controller import BaseRequestHandler
 from web.apps.base.status import StatusCode
 from web.apps.user.libs import get_user, get_company, add_user, add_company, check_in, get_check_in_records,\
-    get_statistics_checked
+    get_statistics_checked, get_statistics_unchecked
 
 
 class CompanyHandler(BaseRequestHandler, ABC):
@@ -94,10 +94,27 @@ class UserCheckInHandler(BaseRequestHandler, ABC):
 
 class StatisticsCheckInHandler(BaseRequestHandler, ABC):
 
+    middleware_list = ['web.middleware.middleware.WxMiddleware']
+
     async def get(self):
         response = dict()
         enterprise_id = self.get_argument('enterpriseId', None)
         result = await get_statistics_checked(self, enterprise_id=enterprise_id)
+        response['code'] = result['code']
+        response['message'] = result['msg']
+        if result['status']:
+            response['data'] = result['data']
+        return self.write_json(response)
+
+
+class StatisticsUncheckInHandler(BaseRequestHandler, ABC):
+
+    middleware_list = ['web.middleware.middleware.WxMiddleware']
+
+    async def get(self):
+        response = dict()
+        enterprise_id = self.get_argument('enterpriseId', None)
+        result = await get_statistics_unchecked(self, enterprise_id=enterprise_id)
         response['code'] = result['code']
         response['message'] = result['msg']
         if result['status']:
