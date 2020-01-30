@@ -8,7 +8,7 @@
 """
 from logzero import logger
 
-from web.models.databases import User, Company, CheckInRecordModel, StatusEnum
+from web.models.databases import User, Company, CompanyUser, CheckInRecordModel, StatusEnum
 from web.models.form_validate import validate
 from web.apps.base.status import StatusCode, UserCenterStatusCode
 from web.utils.date2json import to_json
@@ -36,14 +36,14 @@ async def get_company(self, enterprise_id=None):
     return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": to_json(rows)}
 
 
-def check_user_exist(self):
+def check_user_exist(user):
     """判断一个用户是否注册了超过3个企业"""
-    if not self.current_user:
-        return True, {}
-    query = Company.by_user_id(self.current_user.id)
+    if not user:
+        return {'status': True, 'existed': False}
+    query = CompanyUser.by_user_id(user.id)
     if len(query) >= 3:
-        return False, {'status': False, 'msg': '该用户已注册超过3个企业', "code": StatusCode.exist_error.value}
-    return True, {}
+        return {'status': False, 'msg': '该用户已注册超过3个企业', "code": StatusCode.exist_error.value}
+    return {'status': True, 'existed': True}
 
 
 async def add_user(self, **kwargs):
@@ -56,25 +56,33 @@ async def add_user(self, **kwargs):
         company = Company.by_id(kwargs.get('enterpriseId'))
         if not company:
             return {'status': False, 'msg': '该企业不存在', "code": StatusCode.not_found_error.value}
-        passed, query = check_user_exist(self)
-        if not passed:
+        user = self.current_user
+        query = check_user_exist(user)
+        if not query.get('status'):
             return query
-        employee_id = kwargs.get('employeeId')
-        if employee_id:
-            employee_id = employee_id.stirp()
-        avatar_pic = kwargs.get('avatarPic')
-        if avatar_pic:
-            avatar_pic = avatar_pic.strip()
-        user = User(
-            userName=kwargs.get('userName').strip(),
-            employeeId=employee_id,
-            userPhone=kwargs.get('userPhone').strip(),
-            avatarPic=avatar_pic
-        )
-        company.user += [user]
-        self.db.add(user)
-        self.db.add(company)
-        self.db.commit()
+        if not query.get('existed'):    # 如果当前用户不存在，则注册用户时需要记录openid
+            employee_id = kwargs.get('employeeId')
+            if employee_id:
+                employee_id = employee_id.stirp()
+            avatar_pic = kwargs.get('avatarPic')
+            if avatar_pic:
+                avatar_pic = avatar_pic.strip()
+            user = User(
+                userName=kwargs.get('userName').strip(),
+                employeeId=employee_id,
+                userPhone=kwargs.get('userPhone').strip(),
+                avatarPic=avatar_pic,
+                openId=self.openid
+            )
+            self.db.add(user)
+            self.db.commit()
+        company_user = CompanyUser.by_company_user_id(user.id, company.id)
+        if company_user:
+            return {'status': False, 'msg': '该用户已注册当前企业', "code": StatusCode.exist_error.value}
+        else:
+            company_user = CompanyUser(company_id=company.id, user_id=user.id)
+            self.db.add(company_user)
+            self.db.commit()
         return {'status': True, 'msg': '注册成功', "code": StatusCode.success.value,
                 "data": {"userId": user.id}}
     except Exception as e:
@@ -93,22 +101,33 @@ async def add_company(self, **kwargs):
         company = Company.by_name(kwargs.get('companyName'))
         if company:
             return {'status': False, 'msg': '该企业已注册', "code": StatusCode.exist_error.value}
-        passed, query = check_user_exist(self)
-        if not passed:
+        user = self.current_user
+        query = check_user_exist(user)
+        if not query.get('status'):
             return query
-        user = User(
-            userName=kwargs.get('userName').strip(),
-            userPhone=kwargs.get('userPhone').strip(),
-            is_admin=True
-        )
+        if not query.get('existed'):    # 如果当前用户不存在，则注册用户时需要记录openid
+            user = User(
+                userName=kwargs.get('userName').strip(),
+                userPhone=kwargs.get('userPhone').strip(),
+                openId=self.openid
+            )
+            self.db.add(user)
+            self.db.commit()
         company = Company(
             companyName=kwargs.get('companyName').strip(),
             companyAddr=kwargs.get('companyAddr').strip()
         )
-        company.user = [user]
-        self.db.add(user)
         self.db.add(company)
         self.db.commit()
+        company_user = CompanyUser.by_company_user_id(user.id, company.id)
+        if company_user:
+            return {'status': False, 'msg': '该用户已注册当前企业', "code": StatusCode.exist_error.value}
+        else:
+            company_user = CompanyUser(
+                company_id=company.id, user_id=user.id, is_admin=True, is_contacts=True
+            )
+            self.db.add(company_user)
+            self.db.commit()
         return {'status': True, 'msg': '注册成功', "code": StatusCode.success.value,
                 "data": {"enterpriseId": company.id}}
     except Exception as e:
@@ -206,7 +225,6 @@ async def get_statistics_checked(self, enterprise_id=None):
 async def get_statistics_unchecked(self, enterprise_id=None):
     """统计未签到数据"""
     if enterprise_id:
-        print(enterprise_id)
         users = User.by_enterprise_id(enterprise_id)    # 根据企业搜索用户
     else:
         users = User.all()

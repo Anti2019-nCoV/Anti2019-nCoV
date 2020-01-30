@@ -264,13 +264,25 @@ class SariNews(ModelBase):
         }
 
 
-# 公司、员工多对多
-CompanyUser = Table(
-    'company_user',
-    ModelBase.metadata,
-    Column('company_id', Integer, ForeignKey("company.id"), nullable=False, primary_key=True),
-    Column('user_id', Integer, ForeignKey("user.id"), nullable=False, primary_key=True)
-)
+class CompanyUser(ModelBase):
+    """公司、员工多对多"""
+    __tablename__ = 'company_user'
+
+    company_id = Column(Integer, ForeignKey("company.id"), nullable=False, primary_key=True)
+    user_id = Column(Integer, ForeignKey("user.id"), nullable=False, primary_key=True)
+    is_admin = Column(Boolean, default=False, comment="是否是管理者")  # 注册企业的默认是管理者
+    is_contacts = Column(Boolean, default=False, comment="是否是联系人")
+
+    company = relationship("Company", back_populates="user")
+    user = relationship("User", back_populates="company")
+
+    @classmethod
+    def by_user_id(cls, kid):
+        return dbSession.query(cls).filter_by(user_id=kid).all()
+
+    @classmethod
+    def by_company_user_id(cls, user_id, company_id):
+        return dbSession.query(cls).filter_by(user_id=user_id, company_id=company_id).all()
 
 
 class Company(ModelBase):
@@ -280,7 +292,7 @@ class Company(ModelBase):
     companyName = Column(String(128), comment="公司名称", index=True, unique=True)
     companyAddr = Column(String(128), comment="公司地址")
     logoPic = Column(String(255), nullable=True, comment="logo图片地址")
-    user = relationship("User", secondary=CompanyUser)
+    user = relationship("CompanyUser", back_populates='company')
     createTime = Column(DateTime, default=datetime.now(), comment="创建时间")
     updateTime = Column(DateTime, nullable=True, comment="更新时间")
 
@@ -348,9 +360,8 @@ class User(ModelBase):
     employeeId = Column(String(32), nullable=True, comment="工号")
     userPhone = Column(String(32), comment="手机")
     avatarPic = Column(String(255), nullable=True, comment="头像地址")
-    is_admin = Column(Boolean, default=False, comment="是否是管理者")     # 注册企业的是管理者
     openId = Column(String(128), unique=True, comment="微信登录openid")
-    company = relationship("Company", secondary=CompanyUser)
+    company = relationship("CompanyUser", back_populates='user')
     checkedTime = Column(DateTime, nullable=True, comment="签到时间")       # 可用来统计当天签到情况
     checkedAddr = Column(String(32), comment="最新签到所在地区")
     checkedStatus = Column(Integer, default=StatusEnum.normal, comment="状态")    # 最新签到状态，用于统计
@@ -368,7 +379,7 @@ class User(ModelBase):
     @classmethod
     def by_enterprise_id(cls, kid):
         """根据企业id查询所有用户"""
-        return dbSession.query(cls).filter(User.company.any(Company.id == kid)).all()
+        return dbSession.query(cls).filter(User.company.any(CompanyUser.company_id == kid)).all()
 
     @classmethod
     def by_id_checked_today(cls, kid):
@@ -420,7 +431,6 @@ class User(ModelBase):
             "employeeId": self.employeeId,
             "userPhone": self.userPhone,
             "avatarPic": self.avatarPic,
-            "is_admin": self.is_admin,
             "openId": self.openId,
             "checkedTime": self.checkedTime,
             "checkedAddr": self.checkedAddr,
