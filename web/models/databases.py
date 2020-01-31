@@ -230,11 +230,7 @@ class SariNews(ModelBase):
     @classmethod
     def update_and_insert(cls, **kwargs):
         title = kwargs.get('title')
-        pubDate = int(str(kwargs.get('pubDate'))[:-3]) if kwargs.get('pubDate') else None
-        row = dbSession.query(cls) \
-            .filter(and_(SariNews.title == title,
-                    SariNews.pubDate == pubDate)) \
-            .first()
+        row = dbSession.query(cls).filter(SariNews.title == title).first()
         if row:
             logger.debug("新闻 已经存在 更新数据")
             try:
