@@ -19,15 +19,17 @@ def validate(keys, payloads):
         for payload in payloads:
             if not payload:
                 valid_err.append({'status': False, 'msg': '参数不能为空'})
-            for k, v in payload.items():
-                if k not in keys:
+            for k in keys:
+                if k not in payload.keys():
                     valid_err.append({'status': False, 'msg': '缺少参数{}, 请补全后重试'.format(k)})
     else:
         if not payloads:
             valid_err.append({'status': False, 'msg': '参数不能为空'})
-        for k, v in payloads.items():
-            if k not in keys:
+
+        for k in keys:
+            if k not in payloads.keys():
                 valid_err.append({'status': False, 'msg': '缺少参数{}, 请补全后重试'.format(k)})
+
     if valid_err:
         return False, valid_err
     else:
