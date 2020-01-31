@@ -10,7 +10,7 @@ from abc import ABC
 from web.apps.base.controller import BaseRequestHandler
 from web.apps.base.status import StatusCode
 from web.apps.user.libs import get_user, get_company, add_user, add_company, check_in, get_check_in_records,\
-    get_statistics_checked, get_statistics_unchecked
+    get_statistics_checked, get_statistics_unchecked, get_statistics_total
 
 
 class CompanyHandler(BaseRequestHandler, ABC):
@@ -19,10 +19,8 @@ class CompanyHandler(BaseRequestHandler, ABC):
 
     async def get(self):
         response = dict(code=StatusCode.success.value)
-        page = int(self.get_argument('page', '1'))
-        page_size = int(self.get_argument('page_size', '10'))
         enterprise_id = self.get_argument('enterpriseId', None)
-        result = await get_company(self, page, page_size, enterprise_id)
+        result = await get_company(self, enterprise_id)
         response['code'] = result['code']
         response['message'] = result['msg']
         if result['status']:
@@ -49,8 +47,7 @@ class UserHandler(BaseRequestHandler, ABC):
         page = int(self.get_argument('page', '1'))
         page_size = int(self.get_argument('page_size', '10'))
         enterprise_id = self.get_argument('enterpriseId', None)
-        user_id = self.get_argument('userId', None)
-        result = await get_user(self, page, page_size, enterprise_id, user_id)
+        result = await get_user(self, page, page_size, enterprise_id)
         response['code'] = result['code']
         response['message'] = result['msg']
         if result['status']:
@@ -82,10 +79,9 @@ class UserCheckInHandler(BaseRequestHandler, ABC):
 
     async def get(self):
         response = dict()
-        _id = self.get_argument('userId', None)
         page = int(self.get_argument('page', '1'))
         page_size = int(self.get_argument('page_size', '10'))
-        result = await get_check_in_records(self, page=page, page_size=page_size, userId=_id)
+        result = await get_check_in_records(self, page=page, page_size=page_size)
         response['code'] = result['code']
         response['message'] = result['msg']
         if result['status']:
@@ -117,7 +113,24 @@ class StatisticsUncheckInHandler(BaseRequestHandler, ABC):
     async def get(self):
         response = dict()
         enterprise_id = self.get_argument('enterpriseId', None)
-        result = await get_statistics_unchecked(self, enterprise_id=enterprise_id)
+        page = int(self.get_argument('page', '1'))
+        page_size = int(self.get_argument('page_size', '10'))
+        result = await get_statistics_unchecked(self, page=page, page_size=page_size, enterprise_id=enterprise_id)
+        response['code'] = result['code']
+        response['message'] = result['msg']
+        if result['status']:
+            response['data'] = result['data']
+        return self.write_json(response)
+
+
+class StatisticsTotalHandler(BaseRequestHandler, ABC):
+
+    middleware_list = ['web.middleware.middleware.WxMiddleware']
+
+    async def get(self):
+        response = dict()
+        enterprise_id = self.get_argument('enterpriseId', None)
+        result = await get_statistics_total(self, enterprise_id=enterprise_id)
         response['code'] = result['code']
         response['message'] = result['msg']
         if result['status']:

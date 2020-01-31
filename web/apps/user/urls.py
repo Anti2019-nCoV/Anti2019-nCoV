@@ -7,7 +7,7 @@
 @Time :    2020/1/28 下午11:58
 """
 from web.apps.user.controller import CompanyHandler, UserHandler, UserCheckInHandler, StatisticsCheckInHandler,\
-    StatisticsUncheckInHandler
+    StatisticsUncheckInHandler, StatisticsTotalHandler
 
 urlpatterns = [
     (r'/enterprise', CompanyHandler),
@@ -15,4 +15,5 @@ urlpatterns = [
     (r'/employee', UserHandler),
     (r'/statistics/checked', StatisticsCheckInHandler),
     (r'/statistics/unchecked', StatisticsUncheckInHandler),
+    (r'/statistics/total', StatisticsTotalHandler),
 ]

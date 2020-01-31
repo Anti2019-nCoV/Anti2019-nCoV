@@ -282,8 +282,12 @@ class CompanyUser(ModelBase):
         return dbSession.query(cls).filter_by(user_id=kid).all()
 
     @classmethod
+    def count_by_company_id(cls, kid):
+        return dbSession.query(cls).filter_by(company_id=kid).count()
+
+    @classmethod
     def by_company_user_id(cls, user_id, company_id):
-        return dbSession.query(cls).filter_by(user_id=user_id, company_id=company_id).all()
+        return dbSession.query(cls).filter_by(user_id=user_id, company_id=company_id).first()
 
     @classmethod
     def add(cls, **kwargs):
@@ -404,20 +408,31 @@ class User(ModelBase):
         return dbSession.query(cls).filter(User.company.any(CompanyUser.company_id == kid)).slice(start, end).all()
 
     @classmethod
-    def by_id_checked_today(cls, kid):
+    def by_enterprise_id_checked_today(cls, kid):
         """查询当天签到的最新数据"""
         dat = date.today()
         return dbSession.query(cls).filter(and_(
-            User.id == kid, cast(User.checkedTime, DATE) == dat)
-        ).first()
+            User.company.any(CompanyUser.company_id == kid), cast(User.checkedTime, DATE) == dat)).all()
 
     @classmethod
-    def by_id_unchecked_today(cls, kid):
-        """查询当天未签到的数据"""
+    def count_status_checked_today(cls, enterprise_id, status):
+        """查询当天签到的最新数据"""
         dat = date.today()
         return dbSession.query(cls).filter(and_(
-            User.id == kid, or_(cast(User.checkedTime, DATE) < dat, User.checkedTime.is_(None)))
-        ).first()
+            User.company.any(CompanyUser.company_id == enterprise_id),
+            cast(User.checkedTime, DATE) == dat),
+            User.checkedStatus == status
+        ).count()
+
+    @classmethod
+    def by_enterprise_id_unchecked_today(cls, kid, page=1, page_size=10):
+        """查询当天未签到的数据"""
+        dat = date.today()
+        start = page_size * (page - 1)
+        end = page * page_size
+        return dbSession.query(cls).filter(
+            and_(User.company.any(CompanyUser.company_id == kid),
+                 or_(cast(User.checkedTime, DATE) < dat, User.checkedTime.is_(None)))).slice(start, end).all()
 
     @classmethod
     def all(cls):
@@ -486,15 +501,6 @@ class CheckInRecordModel(ModelBase):
         start = page_size * (page - 1)
         end = page * page_size
         return dbSession.query(cls).filter_by(userId=kid).order_by(cls.createTime.desc()).slice(start, end).all()
-
-    @classmethod
-    def by_user_id_today(cls, kid):
-        """查询当天的最新数据"""
-        dat = date.today()
-        return dbSession.query(cls).filter(and_(
-            CheckInRecordModel.userId == kid,
-            cast(CheckInRecordModel.createTime, DATE) == dat)
-        ).order_by(cls.createTime.desc()).first()
 
     @classmethod
     def all(cls):

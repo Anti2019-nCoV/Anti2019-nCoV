@@ -19,23 +19,56 @@ from operator import itemgetter
 from itertools import groupby
 
 
-async def get_user(self, page=1, page_size=10, enterprise_id=None, user_id=None):
-    if user_id:
-        rows = User.by_id(user_id)
+def permission_deny():
+    """无权访问"""
+    return {"status": False, "code": UserCenterStatusCode.access_error.value, "msg": "您无权访问"}
+
+
+def auth_failed():
+    """根据openid判断用户是否存在，从而当作登录校验"""
+    return {'status': False, 'msg': '您需要先登录才能签到', "code": UserCenterStatusCode.access_error.value}
+
+
+def validate_error(keys, **kwargs):
+    """校验不合法"""
+    state, msg = validate(keys, kwargs)
+    if not state:
+        return {'status': False, 'msg': '数据入参验证失败', "code": StatusCode.params_error.value}
+    return {'status': True, 'msg': msg, "code": StatusCode.success.value}
+
+
+async def get_user(self, page=1, page_size=10, enterprise_id=None):
+    """查询用户"""
+    user = self.current_user
+    if not user:
+        return auth_failed()
+    if not enterprise_id:
+        rows = user
         rows = [rows] if rows else []
-    elif enterprise_id:
-        rows = User.by_enterprise_id(enterprise_id, page=page, page_size=page_size)     # 查询该企业下的所有用户
     else:
-        rows = User.paginate(page=page, page_size=page_size)
+        role = CompanyUser.by_company_user_id(user.id, enterprise_id)
+        if not role or not role.is_admin:
+            return permission_deny()
+        rows = User.by_enterprise_id(enterprise_id, page=page, page_size=page_size)     # 查询该企业下的所有用户
     return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": to_json(rows)}
 
 
-async def get_company(self, page=1, page_size=10, enterprise_id=None):
-    if enterprise_id:
+async def get_company(self, enterprise_id):
+    """查询企业"""
+    user = self.current_user
+    if not user:
+        return auth_failed()
+    if not enterprise_id:
+        rows = Company.by_user_id(user.id)
+        if not rows:
+            return permission_deny()
+    else:
+        role = CompanyUser.by_company_user_id(user.id, enterprise_id)
+        if not role:
+            return permission_deny()
         rows = Company.by_id(enterprise_id)
         rows = [rows] if rows else []
-    else:
-        rows = Company.paginate(page=page, page_size=page_size)
+
     return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": to_json(rows)}
 
 
@@ -52,9 +85,9 @@ def check_user_exist(user):
 async def add_user(self, **kwargs):
     """员工注册"""
     keys = ['userName', 'userPhone', 'enterpriseId']
-    state, msg = validate(keys, kwargs)
-    if not state:
-        return {'status': False, 'msg': '数据入参验证失败', "code": StatusCode.params_error.value}
+    val = validate_error(keys, **kwargs)
+    if not val.get('status'):
+        return val
     try:
         company = Company.by_id(kwargs.get('enterpriseId'))
         if not company:
@@ -95,9 +128,9 @@ async def add_user(self, **kwargs):
 async def add_company(self, **kwargs):
     """企业注册"""
     keys = ['companyName', 'companyAddr', 'userName', 'userPhone']
-    state, msg = validate(keys, kwargs)
-    if not state:
-        return {'status': False, 'msg': '数据入参验证失败', "code": StatusCode.params_error.value}
+    val = validate_error(keys, **kwargs)
+    if not val.get('status'):
+        return val
     try:
         company = Company.by_name(kwargs.get('companyName'))
         if company:
@@ -143,15 +176,15 @@ async def add_company(self, **kwargs):
 async def check_in(self, **kwargs):
     """员工签到"""
     keys = ['province', 'city', 'address', 'latitude', 'longitude', 'status']
-    state, msg = validate(keys, kwargs)
-    if not state:
-        return {'status': False, 'msg': '数据入参验证失败', "code": StatusCode.params_error.value}
-    user_info = self.current_user
-    if not user_info:
-        return {'status': False, 'msg': '您需要先登录才能签到', "code": UserCenterStatusCode.access_error.value}
+    val = validate_error(keys, **kwargs)
+    if not val.get('status'):
+        return val
+    user = self.current_user
+    if not user:
+        return auth_failed()
     try:
         CheckInRecordModel.add(
-            userId=user_info.id,
+            userId=user.id,
             province=kwargs.get('province'),
             city=kwargs.get('city'),
             address=kwargs.get('address'),
@@ -159,7 +192,7 @@ async def check_in(self, **kwargs):
             longitude=kwargs.get('longitude'),
             status=kwargs.get('status')
         )
-        User.update(user_info.id, {
+        User.update(user.id, {
             'checkedTime': datetime.now(),
             'checkedAddr': kwargs.get('province'),
             'checkedStatus': kwargs.get('status')
@@ -171,11 +204,13 @@ async def check_in(self, **kwargs):
         return {'status': False, 'msg': '签到失败', "code": StatusCode.db_error.value}
 
 
-async def get_check_in_records(self, page=1, page_size=10, userId=None):
-    if userId:
-        rows = CheckInRecordModel.by_user_id(userId, page, page_size)
-    else:
-        rows = CheckInRecordModel.paginate(page, page_size)
+async def get_check_in_records(self, page=1, page_size=10):
+    """查询个人签到轨迹"""
+    user = self.current_user
+    if not user:
+        return auth_failed()
+    rows = CheckInRecordModel.by_user_id(user.id, page, page_size)
+
     return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": to_json(rows)}
 
 
@@ -189,17 +224,14 @@ def get_length(generator):
 
 async def get_statistics_checked(self,  page=1, page_size=10, enterprise_id=None):
     """统计签到数据"""
-    if enterprise_id:
-        users = User.by_enterprise_id(enterprise_id)    # 根据企业搜索用户
-    else:
-        users = User.all()
-    checked_data = []
-    for user in users:
-        checked_models = User.by_id_checked_today(user.id)
-        if checked_models:
-            checked_data.extend(to_json([checked_models]))
-    checked_data.sort(key=itemgetter('checkedAddr'))   # 按省排序
+    if not enterprise_id:
+        return permission_deny()
     checked = []
+    checked_data = to_json(User.by_enterprise_id_checked_today(enterprise_id))    # 根据企业搜索用户
+    if not checked_data:
+        return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": checked}
+
+    checked_data.sort(key=itemgetter('checkedAddr'))  # 按省排序
     for checked_address, items in groupby(checked_data, key=itemgetter('checkedAddr')):   # 按省分割
         isolated_count = 0
         suspected_count = 0
@@ -225,27 +257,42 @@ async def get_statistics_checked(self,  page=1, page_size=10, enterprise_id=None
     return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": checked}
 
 
-async def get_statistics_unchecked(self, enterprise_id=None):
+async def get_statistics_unchecked(self, page=1, page_size=10,  enterprise_id=None):
     """统计未签到数据"""
-    if enterprise_id:
-        users = User.by_enterprise_id(enterprise_id)    # 根据企业搜索用户
-    else:
-        users = User.all()
-    logger.debug(f'unchecked users: {users} count: {len(users)}')
-    unchecked_data = []
-    for user in users:
-        unchecked_models = User.by_id_unchecked_today(user.id)
-        if unchecked_models:
-            logger.debug(f'unchecked_models userid: {user.id}')
-            unchecked_data.extend(to_json([unchecked_models]))
+    user = self.current_user
+    if not user:
+        return auth_failed()
+    if not enterprise_id:
+        return permission_deny()
+    role = CompanyUser.by_company_user_id(user.id, enterprise_id)
+    if not role or not role.is_admin:
+        return permission_deny()
 
-    unchecked = []
-    for uncheck_ in unchecked_data:
-        unchecked.append({
-            'userName': uncheck_.get('userName'),
-            'employeeId': uncheck_.get('employeeId'),
-            'userPhone': uncheck_.get('userPhone')
-        })
+    unchecked_data = User.by_enterprise_id_unchecked_today(enterprise_id, page, page_size)    # 根据企业搜索用户
 
-    return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": unchecked}
+    return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": to_json(unchecked_data)}
 
+
+async def get_statistics_total(self, enterprise_id=None):
+    """统计该企业所有用户个数"""
+    if not enterprise_id:
+        return permission_deny()
+
+    total_count = CompanyUser.count_by_company_id(enterprise_id)
+
+    checked_data = User.by_enterprise_id_checked_today(enterprise_id)  # 根据企业搜索用户
+    checked_count = len(checked_data)
+    isolated_count = User.count_status_checked_today(enterprise_id, StatusEnum.isolated)
+    suspected_count = User.count_status_checked_today(enterprise_id, StatusEnum.suspected)
+    confirmed_count = User.count_status_checked_today(enterprise_id, StatusEnum.confirmed)
+
+    reuslt = {
+        'total_count': total_count,
+        'checked_count': checked_count,
+        'unchecked_count': total_count - checked_count,
+        'isolated_count': isolated_count,
+        'suspected_count': suspected_count,
+        'confirmed_count': confirmed_count
+    }
+
+    return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": reuslt}
