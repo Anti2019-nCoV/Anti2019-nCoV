@@ -51,7 +51,7 @@ async def get_user_info(self, access_token, openid, auth=False):
                 else:
                     userInfo = {
                         'avatarPic': content['headimgurl'],
-                        'openId': content['openid'],
+                        'openid': content['openid'],
                     }
                 return {'status': True, 'msg': '获取信息成功', 'code': StatusCode.success.value, "data": userInfo}
             else:

@@ -15,6 +15,11 @@ import time
 from logzero import logger
 
 
+def format_time(_time):
+    """格式化时间"""
+    return _time.strftime('%Y-%m-%d %H:%M:%S') if _time else ''
+
+
 class SariRecord(ModelBase):
     __tablename__ = 'sari_records'
 
@@ -280,6 +285,21 @@ class CompanyUser(ModelBase):
     def by_company_user_id(cls, user_id, company_id):
         return dbSession.query(cls).filter_by(user_id=user_id, company_id=company_id).all()
 
+    @classmethod
+    def add(cls, **kwargs):
+        """增加一行数据"""
+        new_row = CompanyUser(**kwargs)
+        dbSession.add(new_row)
+        dbSession.commit()
+        return new_row
+
+    @classmethod
+    def update(cls, company_id, user_id, data):
+        """根据id更新数据，data为字典格式"""
+        ins = {'is_admin': data.get('is_admin', False), 'is_contacts': data.get('is_contacts', False)}
+        dbSession.query(cls).filter_by(company_id=company_id, user_id=user_id).update(ins)
+        dbSession.commit()
+
 
 class Company(ModelBase):
     __tablename__ = 'company'
@@ -298,7 +318,7 @@ class Company(ModelBase):
 
     @classmethod
     def by_user_id(cls, kid):
-        return dbSession.query(cls).filter(Company.user.any(User.id == kid)).all()
+        return dbSession.query(cls).filter(Company.user.any(CompanyUser.user_id == kid)).all()
 
     @classmethod
     def by_name(cls, name):
@@ -309,35 +329,39 @@ class Company(ModelBase):
         return dbSession.query(cls).all()
 
     @classmethod
-    def update_and_insert(cls, **kwargs):
-        name = kwargs.get('companyName')
-        row = dbSession.query(cls) \
-            .filter(Company.companyName == name) \
-            .first()
-        if row:
-            logger.debug(f"{name} 已经存在 更新数据")
-            try:
-                for k, v in kwargs.items():
-                    setattr(row, k, v)
-                dbSession.commit()
-            except Exception as e:
-                logger.error("Update Error " + str(e))
-        else:
-            logger.debug(f"{name} 不存在 新增数据")
-            try:
-                new_row = Company(**kwargs)
-                dbSession.add(new_row)
-                dbSession.commit()
-            except Exception as e:
-                logger.error("Insert Error " + str(e))
+    def paginate(cls, page=1, page_size=10):
+        start = page_size * (page - 1)
+        end = page * page_size
+        return dbSession.query(cls).slice(start, end).all()
+
+    @classmethod
+    def add(cls, **kwargs):
+        """增加一行数据"""
+        new_row = Company(**kwargs)
+        dbSession.add(new_row)
+        dbSession.commit()
+        return new_row
+
+    @classmethod
+    def update(cls, kid, data):
+        """根据id更新数据，data为字典格式"""
+        data['updateTime'] = datetime.now()
+        dbSession.query(cls).filter_by(id=kid).update(data)
+        dbSession.commit()
+
+    @classmethod
+    def delete(cls, kid):
+        """根据id删除一行数据"""
+        dbSession.query(cls).filter_by(id=kid).delete()
+        dbSession.commit()
 
     def to_dict(self):
         return {
             "companyName": self.companyName,
             "companyAddr": self.companyAddr,
             "logoPic": self.logoPic,
-            "createTime": self.createTime,
-            "updateTime": self.updateTime
+            "createTime": format_time(self.createTime),
+            "updateTime": format_time(self.updateTime)
         }
 
 
@@ -356,7 +380,7 @@ class User(ModelBase):
     employeeId = Column(String(32), nullable=True, comment="工号")
     userPhone = Column(String(32), comment="手机")
     avatarPic = Column(String(255), nullable=True, comment="头像地址")
-    openId = Column(String(128), unique=True, comment="微信登录openid")
+    openid = Column(String(255), unique=True, comment="微信登录openid")
     company = relationship("CompanyUser", back_populates='user')
     checkedTime = Column(DateTime, nullable=True, comment="签到时间")       # 可用来统计当天签到情况
     checkedAddr = Column(String(32), comment="最新签到所在地区")
@@ -370,12 +394,14 @@ class User(ModelBase):
 
     @classmethod
     def by_openid(cls, kid):
-        return dbSession.query(cls).filter_by(openId=kid).first()
+        return dbSession.query(cls).filter_by(openid=kid).first()
 
     @classmethod
-    def by_enterprise_id(cls, kid):
+    def by_enterprise_id(cls, kid, page=1, page_size=10):
         """根据企业id查询所有用户"""
-        return dbSession.query(cls).filter(User.company.any(CompanyUser.company_id == kid)).all()
+        start = page_size * (page - 1)
+        end = page * page_size
+        return dbSession.query(cls).filter(User.company.any(CompanyUser.company_id == kid)).slice(start, end).all()
 
     @classmethod
     def by_id_checked_today(cls, kid):
@@ -398,28 +424,31 @@ class User(ModelBase):
         return dbSession.query(cls).all()
 
     @classmethod
-    def update_and_insert(cls, **kwargs):
-        name = kwargs.get('userName')
-        phone = kwargs.get('userPhone')
-        row = dbSession.query(cls) \
-            .filter(and_(User.userName == name, User.userPhone == phone)) \
-            .first()
-        if row:
-            logger.debug(f"{name} 已经存在 更新数据")
-            try:
-                for k, v in kwargs.items():
-                    setattr(row, k, v)
-                dbSession.commit()
-            except Exception as e:
-                logger.error("Update Error " + str(e))
-        else:
-            logger.debug("不存在 新增数据")
-            try:
-                new_row = User(**kwargs)
-                dbSession.add(new_row)
-                dbSession.commit()
-            except Exception as e:
-                logger.error("Insert Error " + str(e))
+    def paginate(cls, page=1, page_size=10):
+        start = page_size * (page - 1)
+        end = page * page_size
+        return dbSession.query(cls).slice(start, end).all()
+
+    @classmethod
+    def add(cls, **kwargs):
+        """增加一行数据"""
+        new_row = User(**kwargs)
+        dbSession.add(new_row)
+        dbSession.commit()
+        return new_row
+
+    @classmethod
+    def update(cls, kid, data):
+        """根据id更新数据，data为字典格式"""
+        data['updateTime'] = datetime.now()
+        dbSession.query(cls).filter_by(id=kid).update(data)
+        dbSession.commit()
+
+    @classmethod
+    def delete(cls, kid):
+        """根据id删除一行数据"""
+        dbSession.query(cls).filter_by(id=kid).delete()
+        dbSession.commit()
 
     def to_dict(self):
         return {
@@ -427,12 +456,12 @@ class User(ModelBase):
             "employeeId": self.employeeId,
             "userPhone": self.userPhone,
             "avatarPic": self.avatarPic,
-            "openId": self.openId,
+            "openid": self.openid,
             "checkedTime": self.checkedTime,
             "checkedAddr": self.checkedAddr,
             "checkedStatus": self.checkedStatus,
-            "createTime": self.createTime,
-            "updateTime": self.updateTime
+            "createTime": format_time(self.createTime),
+            "updateTime": format_time(self.updateTime)
         }
 
 
@@ -456,7 +485,7 @@ class CheckInRecordModel(ModelBase):
     def by_user_id(cls, kid, page=1, page_size=10):
         start = page_size * (page - 1)
         end = page * page_size
-        return dbSession.query(cls).filter_by(userId=kid).order_by(-cls.createTime).slice(start, end).all()
+        return dbSession.query(cls).filter_by(userId=kid).order_by(cls.createTime.desc()).slice(start, end).all()
 
     @classmethod
     def by_user_id_today(cls, kid):
@@ -469,21 +498,21 @@ class CheckInRecordModel(ModelBase):
 
     @classmethod
     def all(cls):
-        return dbSession.query(cls).order_by(-cls.createTime).all()
+        return dbSession.query(cls).order_by(cls.createTime.desc()).all()
 
     @classmethod
-    def paginate(cls, page=1, page_size=10, userId=None):
+    def paginate(cls, page=1, page_size=10):
         start = page_size * (page - 1)
         end = page * page_size
-        if userId:
-            return dbSession.query(cls).filter(CheckInRecordModel.userId == userId).order_by(-cls.createTime).slice(start, end).all()
-        else:
-            return dbSession.query(cls).order_by(-cls.createTime).slice(start, end).all()
+        return dbSession.query(cls).order_by(cls.createTime.desc()).slice(start, end).all()
 
-    @property
-    def _createTime(self):
-        if self.createTime:
-            return self.createTime.strftime('%Y-%m-%d %H:%M:%S')
+    @classmethod
+    def add(cls, **kwargs):
+        """增加一行数据"""
+        new_row = CheckInRecordModel(**kwargs)
+        dbSession.add(new_row)
+        dbSession.commit()
+        return new_row
 
     def to_dict(self):
         return {
@@ -494,7 +523,7 @@ class CheckInRecordModel(ModelBase):
             "latitude": self.latitude,
             "longitude": self.longitude,
             "status": self.status,
-            "createTime": self._createTime
+            "createTime": format_time(self.createTime)
         }
 
 

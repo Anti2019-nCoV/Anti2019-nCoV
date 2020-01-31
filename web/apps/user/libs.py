@@ -12,27 +12,30 @@ from web.models.databases import User, Company, CompanyUser, CheckInRecordModel,
 from web.models.form_validate import validate
 from web.apps.base.status import StatusCode, UserCenterStatusCode
 from web.utils.date2json import to_json
+from web.utils.save_file import save_pic
 from datetime import datetime
 
 from operator import itemgetter
 from itertools import groupby
 
 
-async def get_user(self, enterprise_id=None, user_id=None):
+async def get_user(self, page=1, page_size=10, enterprise_id=None, user_id=None):
     if user_id:
-        rows = [User.by_id(user_id)]
+        rows = User.by_id(user_id)
+        rows = [rows] if rows else []
     elif enterprise_id:
-        rows = User.by_enterprise_id(enterprise_id)     # 查询该企业下的所有用户
+        rows = User.by_enterprise_id(enterprise_id, page=page, page_size=page_size)     # 查询该企业下的所有用户
     else:
-        rows = User.all()
+        rows = User.paginate(page=page, page_size=page_size)
     return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": to_json(rows)}
 
 
-async def get_company(self, enterprise_id=None):
+async def get_company(self, page=1, page_size=10, enterprise_id=None):
     if enterprise_id:
-        rows = [Company.by_id(enterprise_id)]
+        rows = Company.by_id(enterprise_id)
+        rows = [rows] if rows else []
     else:
-        rows = Company.all()
+        rows = Company.paginate(page=page, page_size=page_size)
     return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": to_json(rows)}
 
 
@@ -66,25 +69,23 @@ async def add_user(self, **kwargs):
                 employee_id = employee_id.stirp()
             avatar_pic = kwargs.get('avatarPic')
             if avatar_pic:
-                avatar_pic = avatar_pic.strip()
-            user = User(
+                avatar_pic = await save_pic(avatar_pic.strip(), 'avatar', f'avatar_{self.openid}')
+                if not avatar_pic:
+                    return {'status': False, 'msg': '头像保存失败，请重试', "code": StatusCode.file_save_error.value}
+            user = User.add(
                 userName=kwargs.get('userName').strip(),
                 employeeId=employee_id,
                 userPhone=kwargs.get('userPhone').strip(),
                 avatarPic=avatar_pic,
-                openId=self.openid
+                openid=self.openid
             )
-            self.db.add(user)
-            self.db.commit()
         company_user = CompanyUser.by_company_user_id(user.id, company.id)
         if company_user:
             return {'status': False, 'msg': '该用户已注册当前企业', "code": StatusCode.exist_error.value}
         else:
-            company_user = CompanyUser(company_id=company.id, user_id=user.id)
-            self.db.add(company_user)
-            self.db.commit()
+            CompanyUser.add(company_id=company.id, user_id=user.id)
         return {'status': True, 'msg': '注册成功', "code": StatusCode.success.value,
-                "data": {"userId": user.id}}
+                "data": {"userId": user.id, "avatarPic": user.avatarPic}}
     except Exception as e:
         logger.error(f"add user In Error: {str(e)}")
         self.db.rollback()
@@ -106,30 +107,33 @@ async def add_company(self, **kwargs):
         if not query.get('status'):
             return query
         if not query.get('existed'):    # 如果当前用户不存在，则注册用户时需要记录openid
-            user = User(
+            user = User.add(
                 userName=kwargs.get('userName').strip(),
                 userPhone=kwargs.get('userPhone').strip(),
-                openId=self.openid
+                openid=self.openid
             )
-            self.db.add(user)
-            self.db.commit()
-        company = Company(
+        company = Company.add(
             companyName=kwargs.get('companyName').strip(),
             companyAddr=kwargs.get('companyAddr').strip()
         )
-        self.db.add(company)
-        self.db.commit()
+        logo_pic = kwargs.get('logoPic')
+        if logo_pic:
+            logo_pic = await save_pic(logo_pic.strip(), 'logo', f'logo_{company.id}')
+            if not logo_pic:
+                if not query.get('existed'):
+                    user.delete(user.id)
+                company.delete(company.id)
+                return {'status': False, 'msg': 'logo保存失败，请重试', "code": StatusCode.file_save_error.value}
+            company.update(company.id, {'logoPic': logo_pic})
         company_user = CompanyUser.by_company_user_id(user.id, company.id)
         if company_user:
             return {'status': False, 'msg': '该用户已注册当前企业', "code": StatusCode.exist_error.value}
         else:
-            company_user = CompanyUser(
+            CompanyUser.add(
                 company_id=company.id, user_id=user.id, is_admin=True, is_contacts=True
             )
-            self.db.add(company_user)
-            self.db.commit()
         return {'status': True, 'msg': '注册成功', "code": StatusCode.success.value,
-                "data": {"enterpriseId": company.id}}
+                "data": {"enterpriseId": company.id, "logoPic": company.logoPic}}
     except Exception as e:
         logger.error(f"add Company In Error: {str(e)}")
         self.db.rollback()
@@ -146,7 +150,7 @@ async def check_in(self, **kwargs):
     if not user_info:
         return {'status': False, 'msg': '您需要先登录才能签到', "code": UserCenterStatusCode.access_error.value}
     try:
-        ch = CheckInRecordModel(
+        CheckInRecordModel.add(
             userId=user_info.id,
             province=kwargs.get('province'),
             city=kwargs.get('city'),
@@ -155,13 +159,11 @@ async def check_in(self, **kwargs):
             longitude=kwargs.get('longitude'),
             status=kwargs.get('status')
         )
-        self.db.query(User).filter_by(id=user_info.id).update({
+        User.update(user_info.id, {
             'checkedTime': datetime.now(),
             'checkedAddr': kwargs.get('province'),
             'checkedStatus': kwargs.get('status')
-        })      # 更新用户表的签到状态
-        self.db.add(ch)
-        self.db.commit()
+        })  # 更新用户表的签到状态
         return {'status': True, 'msg': '签到成功', "code": StatusCode.success.value}
     except Exception as e:
         logger.error(f"Check In Error: {str(e)}")
@@ -173,18 +175,19 @@ async def get_check_in_records(self, page=1, page_size=10, userId=None):
     if userId:
         rows = CheckInRecordModel.by_user_id(userId, page, page_size)
     else:
-        rows = CheckInRecordModel.paginate(userId, page, page_size)
+        rows = CheckInRecordModel.paginate(page, page_size)
     return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": to_json(rows)}
 
 
 def get_length(generator):
+    """获取迭代器长度"""
     if hasattr(generator, "__len__"):
         return len(generator)
     else:
         return sum(1 for _ in generator)
 
 
-async def get_statistics_checked(self, enterprise_id=None):
+async def get_statistics_checked(self,  page=1, page_size=10, enterprise_id=None):
     """统计签到数据"""
     if enterprise_id:
         users = User.by_enterprise_id(enterprise_id)    # 根据企业搜索用户

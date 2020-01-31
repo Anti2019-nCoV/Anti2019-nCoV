@@ -19,8 +19,10 @@ class CompanyHandler(BaseRequestHandler, ABC):
 
     async def get(self):
         response = dict(code=StatusCode.success.value)
+        page = int(self.get_argument('page', '1'))
+        page_size = int(self.get_argument('page_size', '10'))
         enterprise_id = self.get_argument('enterpriseId', None)
-        result = await get_company(self, enterprise_id)
+        result = await get_company(self, page, page_size, enterprise_id)
         response['code'] = result['code']
         response['message'] = result['msg']
         if result['status']:
@@ -44,9 +46,11 @@ class UserHandler(BaseRequestHandler, ABC):
 
     async def get(self):
         response = dict(code=StatusCode.success.value)
+        page = int(self.get_argument('page', '1'))
+        page_size = int(self.get_argument('page_size', '10'))
         enterprise_id = self.get_argument('enterpriseId', None)
         user_id = self.get_argument('userId', None)
-        result = await get_user(self, enterprise_id, user_id)
+        result = await get_user(self, page, page_size, enterprise_id, user_id)
         response['code'] = result['code']
         response['message'] = result['msg']
         if result['status']:
@@ -81,10 +85,7 @@ class UserCheckInHandler(BaseRequestHandler, ABC):
         _id = self.get_argument('userId', None)
         page = int(self.get_argument('page', '1'))
         page_size = int(self.get_argument('page_size', '10'))
-        if _id:
-            result = await get_check_in_records(self, page=page, page_size=page_size, userId=_id)
-        else:
-            result = await get_check_in_records(self, page=page, page_size=page_size)
+        result = await get_check_in_records(self, page=page, page_size=page_size, userId=_id)
         response['code'] = result['code']
         response['message'] = result['msg']
         if result['status']:
@@ -99,7 +100,9 @@ class StatisticsCheckInHandler(BaseRequestHandler, ABC):
     async def get(self):
         response = dict()
         enterprise_id = self.get_argument('enterpriseId', None)
-        result = await get_statistics_checked(self, enterprise_id=enterprise_id)
+        page = int(self.get_argument('page', '1'))
+        page_size = int(self.get_argument('page_size', '10'))
+        result = await get_statistics_checked(self, page=page, page_size=page_size, enterprise_id=enterprise_id)
         response['code'] = result['code']
         response['message'] = result['msg']
         if result['status']:
