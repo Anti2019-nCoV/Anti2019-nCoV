@@ -264,6 +264,64 @@ class SariNews(ModelBase):
         }
 
 
+class SariRumors(ModelBase):
+    __tablename__ = 'sari_rumors'
+    id = Column(Integer, autoincrement=True, primary_key=True)
+    title = Column(String(128), comment="标题")
+    body = Column(TEXT, comment="辟谣内容全文")
+    mainSummary = Column(TEXT, comment="辟谣内容概述")
+    sourceUrl = Column(String(255), comment="来源地址")
+
+    @classmethod
+    def by_id(cls, kid):
+        return dbSession.query(cls).filter_by(id=kid).first()
+
+    @classmethod
+    def all(cls):
+        return dbSession.query(cls).all()
+
+    @classmethod
+    def by_limit(cls, num):
+        return dbSession.query(cls).limit(num)
+
+    @classmethod
+    def paginate(cls, page=1, page_size=10):
+        start = page_size * (page - 1)
+        end = page * page_size
+        return dbSession.query(cls).slice(start, end).all()
+
+    @classmethod
+    def update_and_insert(cls, **kwargs):
+        title = kwargs.get('title')
+        row = dbSession.query(cls).filter(SariRumors.title == title).first()
+        if row:
+            logger.debug("SariRumors 已经存在 更新数据")
+            try:
+                for k, v in kwargs.items():
+                    if k == 'id':
+                        continue
+                    setattr(row, k, v)
+                dbSession.commit()
+            except Exception as e:
+                logger.error("Update Error " + str(e))
+        else:
+            logger.debug("SariRumors 不存在 新增数据")
+            try:
+                new_row = SariRumors(**kwargs)
+                dbSession.add(new_row)
+                dbSession.commit()
+            except Exception as e:
+                logger.error("Insert Error " + str(e))
+
+    def to_dict(self):
+        return {
+            "title": self.title,
+            "mainSummary": self.mainSummary,
+            "body": self.body,
+            "sourceUrl": self.sourceUrl
+        }
+
+
 class RoleTypeEnum(Enum):
     """角色类型"""
     member = 0      # 普通用户
