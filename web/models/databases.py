@@ -299,6 +299,8 @@ class SariRumors(ModelBase):
             logger.debug("SariRumors 已经存在 更新数据")
             try:
                 for k, v in kwargs.items():
+                    if k == 'id':
+                        continue
                     setattr(row, k, v)
                 dbSession.commit()
             except Exception as e:
