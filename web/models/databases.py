@@ -7,8 +7,7 @@
 @Time :    2019/12/5 上午10:48
 """
 from datetime import datetime, date
-
-from sqlalchemy import Column, Integer, String, TEXT, Table, ForeignKey, Boolean, Enum, DateTime, and_, or_, cast, DATE
+from sqlalchemy import Column, Integer, String, TEXT, ForeignKey, Boolean, Enum, DateTime, and_, or_, cast, DATE
 from sqlalchemy.orm import relationship
 from web.models.dbSession import ModelBase, dbSession
 import time
@@ -265,14 +264,20 @@ class SariNews(ModelBase):
         }
 
 
+class RoleTypeEnum(Enum):
+    """角色类型"""
+    member = 0      # 普通用户
+    admin_rw = 1    # 管理员，可读写（针对用户操作）
+    admin_r = 2     # 管理员，只读
+
+
 class CompanyUser(ModelBase):
     """公司、员工多对多"""
     __tablename__ = 'company_user'
 
     company_id = Column(Integer, ForeignKey("company.id"), nullable=False, primary_key=True)
     user_id = Column(Integer, ForeignKey("user.id"), nullable=False, primary_key=True)
-    is_admin = Column(Boolean, default=False, comment="是否是管理者")  # 注册企业的默认是管理者
-    is_contacts = Column(Boolean, default=False, comment="是否是联系人")
+    role_type = Column(Integer, default=RoleTypeEnum.member, comment="角色类型")
 
     company = relationship("Company", back_populates="user")
     user = relationship("User", back_populates="company")
@@ -298,11 +303,17 @@ class CompanyUser(ModelBase):
         return new_row
 
     @classmethod
-    def update(cls, company_id, user_id, data):
+    def update(cls, company_id, user_id, **kwargs):
         """根据id更新数据，data为字典格式"""
-        ins = {'is_admin': data.get('is_admin', False), 'is_contacts': data.get('is_contacts', False)}
+        ins = {'role_type': kwargs.get('role_type', RoleTypeEnum.member)}
         dbSession.query(cls).filter_by(company_id=company_id, user_id=user_id).update(ins)
         dbSession.commit()
+
+    def to_dict(self):
+        return {
+            "enterpriseId": self.company_id,
+            "roleType": self.role_type
+        }
 
 
 class Company(ModelBase):
@@ -347,10 +358,12 @@ class Company(ModelBase):
         return new_row
 
     @classmethod
-    def update(cls, kid, data):
+    def update(cls, kid, **kwargs):
         """根据id更新数据，data为字典格式"""
-        data['updateTime'] = datetime.now()
-        dbSession.query(cls).filter_by(id=kid).update(data)
+        kwargs['updateTime'] = datetime.now()
+        row = dbSession.query(cls).filter_by(id=kid).first()
+        for k, v in kwargs.items():
+            setattr(row, k, v)
         dbSession.commit()
 
     @classmethod
@@ -385,6 +398,7 @@ class User(ModelBase):
     userPhone = Column(String(32), comment="手机")
     avatarPic = Column(String(255), nullable=True, comment="头像地址")
     openid = Column(String(255), unique=True, comment="微信登录openid")
+    is_admin = Column(Boolean, default=False, comment="是否是联系人")
     company = relationship("CompanyUser", back_populates='user')
     checkedTime = Column(DateTime, nullable=True, comment="签到时间")       # 可用来统计当天签到情况
     checkedAddr = Column(String(32), comment="最新签到所在地区")
@@ -399,6 +413,10 @@ class User(ModelBase):
     @classmethod
     def by_openid(cls, kid):
         return dbSession.query(cls).filter_by(openid=kid).first()
+
+    @classmethod
+    def by_name_phone(cls, name, phone):
+        return dbSession.query(cls).filter_by(userName=name, userPhone=phone).first()
 
     @classmethod
     def by_enterprise_id(cls, kid, page=1, page_size=10):
@@ -453,10 +471,12 @@ class User(ModelBase):
         return new_row
 
     @classmethod
-    def update(cls, kid, data):
+    def update(cls, kid, **kwargs):
         """根据id更新数据，data为字典格式"""
-        data['updateTime'] = datetime.now()
-        dbSession.query(cls).filter_by(id=kid).update(data)
+        kwargs['updateTime'] = datetime.now()
+        row = dbSession.query(cls).filter_by(id=kid).first()
+        for k, v in kwargs.items():
+            setattr(row, k, v)
         dbSession.commit()
 
     @classmethod
@@ -465,14 +485,26 @@ class User(ModelBase):
         dbSession.query(cls).filter_by(id=kid).delete()
         dbSession.commit()
 
+    @property
+    def user_enterprise_id(self):
+        """查询用户的企业id"""
+        company_users = dbSession.query(CompanyUser).filter_by(user_id=self.id).all()
+        if not company_users:
+            return []
+        return [c.company_id for c in company_users]
+
     def to_dict(self):
+        check_time = self.checkedTime
+        is_checked = bool(check_time.date() == date.today()) if check_time else False
         return {
             "userName": self.userName,
             "employeeId": self.employeeId,
             "userPhone": self.userPhone,
             "avatarPic": self.avatarPic,
             "openid": self.openid,
-            "checkedTime": self.checkedTime,
+            "enterpriseId": self.user_enterprise_id,
+            "is_checked": is_checked,
+            "checkedTime": format_time(self.checkedTime),
             "checkedAddr": self.checkedAddr,
             "checkedStatus": self.checkedStatus,
             "createTime": format_time(self.createTime),

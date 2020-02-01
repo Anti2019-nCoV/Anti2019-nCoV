@@ -6,14 +6,14 @@
 @Software: PyCharm
 @Time :    2020/1/28 下午11:58
 """
-from web.apps.user.controller import CompanyHandler, UserHandler, UserCheckInHandler, StatisticsCheckInHandler,\
-    StatisticsUncheckInHandler, StatisticsTotalHandler
+from web.apps.user import controller
 
 urlpatterns = [
-    (r'/enterprise', CompanyHandler),
-    (r'/checkIn', UserCheckInHandler),
-    (r'/employee', UserHandler),
-    (r'/statistics/checked', StatisticsCheckInHandler),
-    (r'/statistics/unchecked', StatisticsUncheckInHandler),
-    (r'/statistics/total', StatisticsTotalHandler),
+    (r'/enterprise', controller.CompanyHandler),
+    (r'/checkIn', controller.UserCheckInHandler),
+    (r'/employee', controller.UserHandler),
+    (r'/statistics/checked', controller.StatisticsCheckInHandler),
+    (r'/statistics/unchecked', controller.StatisticsUncheckInHandler),
+    (r'/statistics/total', controller.StatisticsTotalHandler),
+    (r'/admin', controller.UserAdminHandler)
 ]
