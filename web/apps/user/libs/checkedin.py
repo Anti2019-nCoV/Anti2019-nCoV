@@ -22,17 +22,25 @@ async def check_in(self, **kwargs):
     if not user:
         return auth_failed()
     try:
+        province = kwargs.get('province')
+        city = kwargs.get('city')
+        district = kwargs.get('district')
+        status = kwargs.get('status')
         CheckInRecordModel.add(
             userId=user.id,
-            province=kwargs.get('province'),
-            city=kwargs.get('city'),
+            province=province,
+            city=city,
+            district=district,
             address=kwargs.get('address'),
             latitude=kwargs.get('latitude'),
             longitude=kwargs.get('longitude'),
-            status=kwargs.get('status')
+            status=status
         )
-        User.update(user.id, checkedTime=datetime.now(), checkedAddr=kwargs.get('province'),
-                    checkedStatus=kwargs.get('status'))  # 更新用户表的签到状态
+        user.update(
+            checkedTime=datetime.now(),
+            checkedAddr=f'{province},{city},{district}',
+            checkedStatus=status
+        )  # 更新用户表的签到状态
         return {'status': True, 'msg': '签到成功', "code": StatusCode.success.value}
     except Exception as e:
         logger.error(f"Check In Error: {str(e)}")
@@ -50,7 +58,7 @@ async def get_check_in_records(self, page=1, page_size=10):
     return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": to_json(rows)}
 
 
-async def get_statistics_checked(self, enterprise_id=None):
+async def get_statistics_checked(self, enterprise_id=None, by_type='province'):
     """统计签到数据"""
     user = self.current_user
     if not user:
@@ -61,9 +69,20 @@ async def get_statistics_checked(self, enterprise_id=None):
     if not company_user:    # 该企业下的所有用户均可查看
         return permission_deny()
     checked = []
-    checked_data = to_json(User.by_enterprise_id_checked_today(enterprise_id))    # 根据企业搜索用户
-    if not checked_data:
+    raw_checked_data = User.by_enterprise_id_checked_today(enterprise_id)    # 根据企业搜索用户
+    if not raw_checked_data:
         return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": checked}
+    checked_data = []
+    for ch in raw_checked_data:
+        row = ch.to_dict()
+        addr = row['checkedAddr'].split(',')
+        if by_type == 'province':     # 是否根据城市统计
+            row['checkedAddr'] = ''.join(s for k, s in enumerate(addr) if k < 1)
+        elif by_type == 'city':     # 是否根据城市统计
+            row['checkedAddr'] = ''.join(s for k, s in enumerate(addr) if k < 2)
+        else:
+            row['checkedAddr'] = ''.join(s for s in addr)
+        checked_data.append(row)
 
     checked_data.sort(key=itemgetter('checkedAddr'))  # 按省排序
     for checked_address, items in groupby(checked_data, key=itemgetter('checkedAddr')):   # 按省分割

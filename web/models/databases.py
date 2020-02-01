@@ -360,12 +360,17 @@ class CompanyUser(ModelBase):
         dbSession.commit()
         return new_row
 
-    @classmethod
-    def update(cls, company_id, user_id, **kwargs):
-        """根据id更新数据，data为字典格式"""
+    def update(self, **kwargs):
+        """根据实例更新数据"""
         ins = {'role_type': kwargs.get('role_type', RoleTypeEnum.member)}
-        dbSession.query(cls).filter_by(company_id=company_id, user_id=user_id).update(ins)
+        dbSession.query(CompanyUser).filter_by(
+            company_id=self.company_id, user_id=self.user_id).update(ins)
         dbSession.commit()
+
+    def delete(self):
+        """删除一个实例"""
+        dbSession.query(CompanyUser).filter_by(
+            company_id=self.company_id, user_id=self.user_id).delete()
 
     def to_dict(self):
         return {
@@ -415,19 +420,18 @@ class Company(ModelBase):
         dbSession.commit()
         return new_row
 
-    @classmethod
-    def update(cls, kid, **kwargs):
-        """根据id更新数据，data为字典格式"""
+    def update(self, **kwargs):
+        """根据实例更新数据"""
         kwargs['updateTime'] = datetime.now()
-        row = dbSession.query(cls).filter_by(id=kid).first()
+        row = dbSession.query(Company).filter_by(id=self.id).first()
         for k, v in kwargs.items():
             setattr(row, k, v)
         dbSession.commit()
+        return row
 
-    @classmethod
-    def delete(cls, kid):
-        """根据id删除一行数据"""
-        dbSession.query(cls).filter_by(id=kid).delete()
+    def delete(self):
+        """根据实例删除一行数据"""
+        dbSession.query(Company).filter_by(id=self.id).delete()
         dbSession.commit()
 
     def to_dict(self):
@@ -528,19 +532,18 @@ class User(ModelBase):
         dbSession.commit()
         return new_row
 
-    @classmethod
-    def update(cls, kid, **kwargs):
-        """根据id更新数据，data为字典格式"""
+    def update(self, **kwargs):
+        """根据实例更新数据"""
         kwargs['updateTime'] = datetime.now()
-        row = dbSession.query(cls).filter_by(id=kid).first()
+        row = dbSession.query(User).filter_by(id=self.id).first()
         for k, v in kwargs.items():
             setattr(row, k, v)
         dbSession.commit()
+        return row
 
-    @classmethod
-    def delete(cls, kid):
-        """根据id删除一行数据"""
-        dbSession.query(cls).filter_by(id=kid).delete()
+    def delete(self):
+        """删除一个实例"""
+        dbSession.query(User).filter_by(id=self.id).delete()
         dbSession.commit()
 
     @property
@@ -576,6 +579,7 @@ class CheckInRecordModel(ModelBase):
     userId = Column(ForeignKey('user.id'), comment="用户ID")     # 关联用户
     province = Column(String(64), comment="省")
     city = Column(String(64), comment="市")
+    district = Column(String(64), nullable=True, comment="区/县")
     address = Column(String(255), nullable=True, comment="地址")
     latitude = Column(String(64), comment="纬度")
     longitude = Column(String(64), comment="经度")
@@ -615,6 +619,7 @@ class CheckInRecordModel(ModelBase):
             "userId": self.userId,
             "province": self.province,
             "city": self.city,
+            "district": self.district,
             "address": self.address,
             "latitude": self.latitude,
             "longitude": self.longitude,

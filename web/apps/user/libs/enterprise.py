@@ -6,7 +6,8 @@ from web.models.databases import User, Company, CompanyUser, RoleTypeEnum
 from web.apps.base.status import StatusCode
 from web.utils.date2json import to_json
 from web.apps.user.libs.utils import save_pic, check_user_exist
-from web.apps.user.libs.response import auth_failed, permission_deny, validate_error, param_missing, openid_null
+from web.apps.user.libs.response import auth_failed, permission_deny, validate_error, param_missing,\
+    openid_null, not_found
 
 
 async def get_company(self, enterprise_id):
@@ -50,13 +51,13 @@ async def add_company(self, **kwargs):
             phone = kwargs.get('userPhone').strip()
             user = User.by_name_phone(name, phone)
             if not user:
-                user_flag = True
                 user = User.add(
                     userName=name,
                     userPhone=phone,
                     openid=self.openid,
                     is_admin=True
                 )
+                user_flag = True
         company = Company.add(
             companyName=kwargs.get('companyName').strip(),
             companyAddr=kwargs.get('companyAddr').strip()
@@ -66,10 +67,10 @@ async def add_company(self, **kwargs):
             logo_pic = await save_pic(logo_pic.strip(), 'logo', f'logo_{company.id}')
             if not logo_pic:
                 if user_flag:
-                    user.delete(user.id)
-                company.delete(company.id)
+                    user.delete()
+                company.delete()
                 return {'status': False, 'msg': 'logo保存失败，请重试', "code": StatusCode.file_save_error.value}
-            company.update(company.id, logoPic=logo_pic)
+            company = company.update(logoPic=logo_pic)
         company_user = CompanyUser.by_company_user_id(user.id, company.id)
         if not company_user:
             CompanyUser.add(
@@ -93,14 +94,50 @@ async def update_company(self, enterprise_id=None, **kwargs):
     company_user = CompanyUser.by_company_user_id(user.id, enterprise_id)
     if not company_user or company_user.role_type != RoleTypeEnum.admin_rw:  # 该企业下的所有用户均可查看
         return permission_deny()
+    company = Company.by_id(enterprise_id)
+    if not company:
+        return not_found()
     try:
         keys = ['id', 'user', 'createTime', 'updateTime']
         for key in keys:
-            kwargs.pop(key)  # 排除这些key
-        company = Company.update(enterprise_id, **kwargs)
+            if key in kwargs:
+                kwargs.pop(key)  # 排除这些key
+        logo_pic = kwargs.get('logoPic')
+        if logo_pic:
+            logo_pic = await save_pic(logo_pic.strip(), 'logo', f'logo_{company.id}')
+            if not logo_pic:
+                return {'status': False, 'msg': 'logo保存失败，请重试', "code": StatusCode.file_save_error.value}
+            kwargs['logoPic'] = logo_pic
+        company = company.update(**kwargs)
         return {'status': True, 'msg': '更新企业成功', "code": StatusCode.success.value,
                 "data": {"enterpriseId": company.id, "logoPic": company.logoPic}}
     except Exception as e:
         logger.error(f"update company In Error: {str(e)}")
         self.db.rollback()
         return {'status': False, 'msg': '更新企业失败', "code": StatusCode.db_error.value}
+
+
+async def delete_company(self, enterprise_id):
+    user = self.current_user
+    if not user:
+        return auth_failed()
+    if not enterprise_id:
+        return param_missing('enterpriseId')
+    company_user = CompanyUser.by_company_user_id(user.id, enterprise_id)
+    print(f'userid: {user.id}, enterpriseId: {enterprise_id}, com: {company_user}')
+    if not company_user or company_user.role_type != RoleTypeEnum.admin_rw:  # 该企业下的所有用户均可查看
+        return permission_deny()
+    deleted_instance = Company.by_id(enterprise_id)
+    if not deleted_instance:
+        return not_found()
+    query = CompanyUser.count_by_company_id(enterprise_id)
+    if query > 1:
+        return {'status': False, 'msg': '请先解除当前企业下的其他用户', "code": StatusCode.db_error.value}
+    try:
+        company_user.delete()
+        deleted_instance.delete()
+        return {'status': True, 'msg': '删除企业成功', "code": StatusCode.success.value}
+    except Exception as e:
+        logger.error(f"delete company In Error: {str(e)}")
+        self.db.rollback()
+        return {'status': False, 'msg': '删除企业失败', "code": StatusCode.db_error.value}

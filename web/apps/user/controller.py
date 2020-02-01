@@ -9,8 +9,8 @@
 from abc import ABC
 from web.apps.base.controller import BaseRequestHandler
 from web.apps.base.status import StatusCode
-from web.apps.user.libs.employee import get_user, add_user, update_user, check_user_admin
-from web.apps.user.libs.enterprise import get_company, add_company, update_company
+from web.apps.user.libs.employee import get_user, add_user, update_user, check_user_admin, delete_user
+from web.apps.user.libs.enterprise import get_company, add_company, update_company, delete_company
 from web.apps.user.libs.checkedin import check_in, get_check_in_records, get_statistics_checked,\
     get_statistics_unchecked, get_statistics_total
 
@@ -34,7 +34,7 @@ class CompanyHandler(BaseRequestHandler, ABC):
         payload = self.get_payload()
         result = await add_company(self, **payload)
         response['code'] = result['code']
-        response['msg'] = result['msg']
+        response['message'] = result['msg']
         if result['status']:
             response['data'] = result['data']
         return self.write_json(response)
@@ -45,9 +45,17 @@ class CompanyHandler(BaseRequestHandler, ABC):
         payload = self.get_payload()
         result = await update_company(self, enterprise_id, **payload)
         response['code'] = result['code']
-        response['msg'] = result['msg']
+        response['message'] = result['msg']
         if result['status']:
             response['data'] = result['data']
+        return self.write_json(response)
+
+    async def delete(self):
+        response = dict()
+        enterprise_id = self.get_argument('enterpriseId', None)
+        result = await delete_company(self, enterprise_id)
+        response['code'] = result['code']
+        response['message'] = result['msg']
         return self.write_json(response)
 
 
@@ -72,7 +80,7 @@ class UserHandler(BaseRequestHandler, ABC):
         payload = self.get_payload()
         result = await add_user(self, **payload)
         response['code'] = result['code']
-        response['msg'] = result['msg']
+        response['message'] = result['msg']
         if result['status']:
             response['data'] = result['data']
         return self.write_json(response)
@@ -84,9 +92,18 @@ class UserHandler(BaseRequestHandler, ABC):
         payload = self.get_payload()
         result = await update_user(self, enterprise_id, user_id, **payload)
         response['code'] = result['code']
-        response['msg'] = result['msg']
+        response['message'] = result['msg']
         if result['status']:
             response['data'] = result['data']
+        return self.write_json(response)
+
+    async def delete(self):
+        response = dict()
+        enterprise_id = self.get_argument('enterpriseId', None)
+        user_id = self.get_argument('userId', None)
+        result = await delete_user(self, enterprise_id, user_id)
+        response['code'] = result['code']
+        response['message'] = result['msg']
         return self.write_json(response)
 
 
@@ -113,7 +130,7 @@ class UserCheckInHandler(BaseRequestHandler, ABC):
         payload = self.get_payload()
         result = await check_in(self, **payload)
         response['code'] = result['code']
-        response['msg'] = result['msg']
+        response['message'] = result['msg']
         return self.write_json(response)
 
     async def get(self):
@@ -135,7 +152,8 @@ class StatisticsCheckInHandler(BaseRequestHandler, ABC):
     async def get(self):
         response = dict()
         enterprise_id = self.get_argument('enterpriseId', None)
-        result = await get_statistics_checked(self, enterprise_id=enterprise_id)
+        by_type = self.get_argument('by_type', None)   # province-按省，city-按市，district-区
+        result = await get_statistics_checked(self, enterprise_id, by_type)
         response['code'] = result['code']
         response['message'] = result['msg']
         if result['status']:

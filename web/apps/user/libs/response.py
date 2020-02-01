@@ -23,9 +23,13 @@ def validate_error(keys, **kwargs):
     return {'status': True, 'msg': msg, "code": StatusCode.success.value}
 
 
-def param_missing(*args):
+def param_missing(args):
     return {'status': False, 'msg': f'数据入参不完整，缺少{args}', "code": UserCenterStatusCode.miss_params_error.value}
 
 
 def openid_null():
     return {'status': False, 'msg': f"'openid'为空，无法注册", "code": UserCenterStatusCode.miss_params_error.value}
+
+
+def not_found():
+    return {'status': False, 'msg': f"当前资源不存在", "code": UserCenterStatusCode.not_found_error.value}
