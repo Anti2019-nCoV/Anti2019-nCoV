@@ -99,16 +99,16 @@ async def add_user(self, **kwargs):
         if not query.get('existed'):    # 如果当前用户不存在，则注册用户时需要记录openid
             employee_id = kwargs.get('employeeId')
             if employee_id:
-                employee_id = employee_id.stirp()
+                employee_id = employee_id.strip()
             avatar_pic = kwargs.get('avatarPic')
             if avatar_pic:
-                avatar_pic = await save_pic(avatar_pic, 'avatar', f'avatar_{self.openid}')
+                avatar_pic = await save_pic(avatar_pic.strip(), 'avatar', f'avatar_{self.openid}')
                 if not avatar_pic:
                     return {'status': False, 'msg': '头像保存失败，请重试', "code": StatusCode.file_save_error.value}
             user = User.add(
-                userName=kwargs.get('userName'),
+                userName=kwargs.get('userName').strip(),
                 employeeId=employee_id,
-                userPhone=kwargs.get('userPhone'),
+                userPhone=kwargs.get('userPhone').strip(),
                 avatarPic=avatar_pic,
                 openid=self.openid
             )
@@ -141,17 +141,17 @@ async def add_company(self, **kwargs):
             return query
         if not query.get('existed'):    # 如果当前用户不存在，则注册用户时需要记录openid
             user = User.add(
-                userName=kwargs.get('userName'),
-                userPhone=kwargs.get('userPhone'),
+                userName=kwargs.get('userName').strip(),
+                userPhone=kwargs.get('userPhone').strip(),
                 openid=self.openid
             )
         company = Company.add(
-            companyName=kwargs.get('companyName'),
-            companyAddr=kwargs.get('companyAddr')
+            companyName=kwargs.get('companyName').strip(),
+            companyAddr=kwargs.get('companyAddr').strip()
         )
         logo_pic = kwargs.get('logoPic')
         if logo_pic:
-            logo_pic = await save_pic(logo_pic, 'logo', f'logo_{company.id}')
+            logo_pic = await save_pic(logo_pic.strip(), 'logo', f'logo_{company.id}')
             if not logo_pic:
                 if not query.get('existed'):
                     user.delete(user.id)
