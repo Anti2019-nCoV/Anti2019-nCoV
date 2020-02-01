@@ -6,7 +6,7 @@
 @Software: PyCharm
 @Time :    2020/1/28 下午4:38
 """
-from web.models.databases import SariRecord, SariNews, SariOverall
+from web.models.databases import SariRecord, SariNews, SariOverall, SariRumors
 from web.apps.base.status import StatusCode
 from web.utils.date2json import to_json
 
@@ -72,4 +72,12 @@ async def overalls(self, num=1):
         rows = [SariOverall.by_lasted()]
     else:
         rows = SariOverall.by_limit(num)
+    return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": to_json(rows)}
+
+
+async def rumors(self, num):
+    if num == 'all':
+        rows = SariRumors.all()
+    else:
+        rows = SariRumors.by_limit(int(num))
     return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": to_json(rows)}

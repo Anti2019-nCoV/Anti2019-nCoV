@@ -11,7 +11,7 @@ from logzero import logger
 from urllib import request
 
 from tasks.TaskTimer import TaskTimer
-from web.models.databases import SariRecord, SariOverall, SariNews
+from web.models.databases import SariRecord, SariOverall, SariNews, SariRumors
 from web.settings import api_url
 from datetime import datetime
 
@@ -45,6 +45,13 @@ class SariDataCollector(object):
     def overall_url(self):
         if self.init:
             return self.api + '/overall?latest=0'
+        else:
+            return self.api + '/overall'
+
+    @property
+    def rumors_url(self):
+        if self.init:
+            return self.api + '/rumors?num=all'
         else:
             return self.api + '/overall'
 
@@ -106,6 +113,11 @@ class SariDataCollector(object):
             self.log.debug(f"{overall.get('infectSource')} - {overall.get('updateTime')} saving")
             SariOverall.update_and_insert(**overall)
 
+    def _save_data_rumors(self, rumors):
+        for overall in rumors:
+            self.log.debug(f"{overall.get('title') } saving")
+            SariRumors.update_and_insert(**overall)
+
     def _save_data_news(self, news):
         for new in news:
             new['pubDate'] = int(str(new.get('pubDate'))[:-3]) if new.get('pubDate') else None
@@ -126,6 +138,10 @@ class SariDataCollector(object):
         news = self._fetch_data(self.news_url)
         if news:
             self._save_data_news(news)
+
+        rumors = self._fetch_data(self.rumors_url)
+        if rumors:
+            self._save_data_rumors(rumors)
 
         self.log.info(f"Fetch Data End At : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 

@@ -9,7 +9,7 @@
 from abc import ABC
 from web.apps.base.controller import BaseRequestHandler
 from web.apps.base.status import StatusCode
-from web.apps.ncov.libs import record_by_province, records, news, overalls
+from web.apps.ncov.libs import record_by_province, records, news, overalls, rumors
 
 
 class NonCoVHandler(BaseRequestHandler, ABC):
@@ -61,6 +61,19 @@ class NonCoVOverallHandler(BaseRequestHandler, ABC):
         response = dict()
         num = int(self.get_argument('num', '1'))
         result = await overalls(self, num)
+        response['code'] = result['code']
+        response['message'] = result['msg']
+        if result['status']:
+            response['data'] = result['data']
+        return self.write_json(response)
+
+
+class NonCoVSariRumorsHandler(BaseRequestHandler, ABC):
+
+    async def get(self):
+        response = dict()
+        num = self.get_argument('num', '10')
+        result = await rumors(self, num)
         response['code'] = result['code']
         response['message'] = result['msg']
         if result['status']:
