@@ -53,7 +53,7 @@ class SariDataCollector(object):
         if self.init:
             return self.api + '/rumors?num=all'
         else:
-            return self.api + '/overall'
+            return self.api + '/rumors'
 
     def _connect_mongo(self):
         pass
