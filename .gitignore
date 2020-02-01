@@ -23,3 +23,6 @@ uploads
 
 access_token
 jsapi_ticket
+
+*.log
+*nohup.out
