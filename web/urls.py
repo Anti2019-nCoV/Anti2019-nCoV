@@ -12,6 +12,7 @@ from web.apps.position.urls import urlpatterns as position
 from web.apps.ncov.urls import urlpatterns as no_sari
 from web.apps.gateway.urls import urlpatterns as wxGateway
 from web.apps.user.urls import urlpatterns as user
+from web.apps.publish.urls import urlpatterns as publish
 urlpatterns = list()
 
 urlpatterns += merge_route(common, '')
@@ -19,4 +20,5 @@ urlpatterns += merge_route(position, '/area')
 urlpatterns += merge_route(no_sari, '/nCoV')
 urlpatterns += merge_route(wxGateway, '/wx')
 urlpatterns += merge_route(user, '/user')
+urlpatterns += merge_route(publish, '/epidemic')
 

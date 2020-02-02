@@ -53,7 +53,7 @@ class SariRecord(ModelBase):
         city = kwargs.get('cityName')
         row = dbSession.query(cls) \
             .filter(and_(SariRecord.provinceName == province,
-                    SariRecord.cityName == city)) \
+                         SariRecord.cityName == city)) \
             .first()
         if row:
             logger.debug("已经存在 更新数据")
@@ -74,7 +74,7 @@ class SariRecord(ModelBase):
 
     @classmethod
     def by_province(cls, province):
-        return dbSession.query(cls)\
+        return dbSession.query(cls) \
             .filter(SariRecord.provinceName.like('%{}%'.format(province))).all()
 
     @property
@@ -148,7 +148,7 @@ class SariOverall(ModelBase):
         updateTime = int(str(kwargs.get('updateTime'))[:-3]) if kwargs.get('updateTime') else None
         row = dbSession.query(cls) \
             .filter(and_(SariOverall.infectSource == infectSource,
-                    SariRecord.updateTime == updateTime)) \
+                         SariRecord.updateTime == updateTime)) \
             .first()
         if row:
             logger.debug("头条 已经存在 更新数据")
@@ -222,7 +222,8 @@ class SariNews(ModelBase):
         start = page_size * (page - 1)
         end = page * page_size
         if location:
-            return dbSession.query(cls).filter(SariNews.provinceName.like('%{}%'.format(location))).order_by(-cls.pubDate).slice(start, end).all()
+            return dbSession.query(cls).filter(SariNews.provinceName.like('%{}%'.format(location))).order_by(
+                -cls.pubDate).slice(start, end).all()
         else:
             return dbSession.query(cls).order_by(-cls.pubDate).slice(start, end).all()
 
@@ -428,10 +429,10 @@ class Company(ModelBase):
 
 
 class StatusEnum(Enum):
-    normal = 0      # 健康
-    isolated = 1    # 隔离
-    suspected = 2   # 疑似
-    confirmed = 3   # 确诊
+    normal = 0  # 健康
+    isolated = 1  # 隔离
+    suspected = 2  # 疑似
+    confirmed = 3  # 确诊
 
 
 class User(ModelBase):
@@ -444,9 +445,9 @@ class User(ModelBase):
     avatarPic = Column(String(255), nullable=True, comment="头像地址")
     openid = Column(String(255), unique=True, comment="微信登录openid")
     company = relationship("CompanyUser", back_populates='user')
-    checkedTime = Column(DateTime, nullable=True, comment="签到时间")       # 可用来统计当天签到情况
+    checkedTime = Column(DateTime, nullable=True, comment="签到时间")  # 可用来统计当天签到情况
     checkedAddr = Column(String(32), comment="最新签到所在地区")
-    checkedStatus = Column(Integer, default=StatusEnum.normal, comment="状态")    # 最新签到状态，用于统计
+    checkedStatus = Column(Integer, default=StatusEnum.normal, comment="状态")  # 最新签到状态，用于统计
     createTime = Column(DateTime, default=datetime.now(), comment="创建时间")
     updateTime = Column(DateTime, nullable=True, comment="更新时间")
 
@@ -541,7 +542,7 @@ class User(ModelBase):
 class CheckInRecordModel(ModelBase):
     __tablename__ = 'check_in_record'
     id = Column(Integer, autoincrement=True, primary_key=True)
-    userId = Column(ForeignKey('user.id'), comment="用户ID")     # 关联用户
+    userId = Column(ForeignKey('user.id'), comment="用户ID")  # 关联用户
     province = Column(String(64), comment="省")
     city = Column(String(64), comment="市")
     address = Column(String(255), nullable=True, comment="地址")
@@ -718,4 +719,72 @@ class NewsModel(ModelBase):
             "PicUrl": self.PicUrl,
             "createTime": self._createTime,
             "updateTime": self._updateTime
+        }
+
+
+class EpidemicPublishModel(ModelBase):
+    __tablename__ = 'epidemic_publish'
+    id = Column(Integer, autoincrement=True, primary_key=True)
+    cityName = Column(String(128), comment="城市名称")
+    regionName = Column(String(128), comment="地区名称")
+    isolatedCount = Column(Integer, comment="隔离人数")
+    suspectedCount = Column(Integer, comment="疑似人数")
+    confirmedCount = Column(Integer, comment="确诊人数")
+    comment = Column(TEXT, comment="提交备注")
+    createTime = Column(DateTime, default=datetime.now, comment="提交时间")
+    updateTime = Column(DateTime, comment="更新时间")
+
+    @classmethod
+    def all(cls):
+        return dbSession.query(cls).order_by(-cls.updateTime).all()
+
+    @classmethod
+    def add(cls, **kwargs):
+        """增加一行数据"""
+        new_row = EpidemicPublishModel(**kwargs)
+        dbSession.add(new_row)
+        dbSession.commit()
+        return new_row
+
+    @classmethod
+    def update(cls, kid, data):
+        """根据id更新数据，data为字典格式"""
+        data['updateTime'] = datetime.now()
+        dbSession.query(cls).filter_by(id=kid).update(data)
+        dbSession.commit()
+
+    @classmethod
+    def update_by_city_publish_date(cls, **data):
+        cityName = data.get('cityName')
+        regionName = data.get('regionName')
+        data['updateTime'] = datetime.now()
+        row = dbSession.query(cls).filter(and_(EpidemicPublishModel.regionName.like("%{}%".format(regionName)),
+                                               EpidemicPublishModel.cityName.like("%{}%".format(cityName)))).first()
+        if row:
+            for k, v in data.items():
+                setattr(row, k, v)
+            dbSession.commit()
+
+    @classmethod
+    def delete(cls, kid):
+        """根据id删除一行数据"""
+        dbSession.query(cls).filter_by(id=kid).delete()
+        dbSession.commit()
+
+    @classmethod
+    def by_city(cls, CityName):
+        return dbSession.query(cls).order_by(-cls.updateTime) \
+            .filter(cls.cityName.like('%{}%'.format(CityName))).all()
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "cityName": self.cityName,
+            "regionName": self.regionName,
+            "isolatedCount": self.isolatedCount,
+            "suspectedCount": self.suspectedCount,
+            "confirmedCount": self.confirmedCount,
+            "comment": self.comment,
+            "createTime": format_time(self.createTime),
+            "updateTime": format_time(self.updateTime)
         }
