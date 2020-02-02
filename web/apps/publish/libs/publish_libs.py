@@ -15,7 +15,7 @@ from web.utils.date2json import to_json
 
 
 async def add_publish(self, **kwargs):
-    keys = ['cityName', 'regionName', 'isolatedCount', 'suspectedCount', 'confirmedCount', 'comment']
+    keys = ['cityName', 'regionName', 'isolatedCount', 'suspectedCount', 'confirmedCount', 'comment', 'curedCount']
     state, msg = validate(keys, kwargs)
     if not state:
         return {'status': False, 'msg': '数据入参验证失败', "code": StatusCode.params_error.value}
@@ -64,6 +64,7 @@ def parser(results):
         "isolatedCount": 0,
         "suspectedCount": 0,
         "confirmedCount": 0,
+        "curedCount": 0,
         "regions": []
     }
     new_region = []
@@ -73,8 +74,10 @@ def parser(results):
         new_res['isolatedCount'] += int(res.get('isolatedCount'))
         new_res['suspectedCount'] += int(res.get('suspectedCount'))
         new_res['confirmedCount'] += int(res.get('confirmedCount'))
+        new_res['curedCount'] += int(res.get('curedCount'))
         tmp = {"regionName": res.get('regionName'),
                "isolatedCount": res.get('isolatedCount'),
+               "curedCount": res.get('curedCount'),
                "suspectedCount": res.get('suspectedCount'),
                "confirmedCount": res.get('confirmedCount')}
         new_region.append(tmp)

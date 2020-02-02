@@ -767,6 +767,7 @@ class EpidemicPublishModel(ModelBase):
     isolatedCount = Column(Integer, comment="隔离人数")
     suspectedCount = Column(Integer, comment="疑似人数")
     confirmedCount = Column(Integer, comment="确诊人数")
+    curedCount = Column(Integer, comment="治愈人数")
     comment = Column(TEXT, comment="提交备注")
     createTime = Column(DateTime, default=datetime.now, comment="提交时间")
     updateTime = Column(DateTime, comment="更新时间")
@@ -821,6 +822,7 @@ class EpidemicPublishModel(ModelBase):
             "isolatedCount": self.isolatedCount,
             "suspectedCount": self.suspectedCount,
             "confirmedCount": self.confirmedCount,
+            "curedCount": self.curedCount,
             "comment": self.comment,
             "createTime": format_time(self.createTime),
             "updateTime": format_time(self.updateTime)
