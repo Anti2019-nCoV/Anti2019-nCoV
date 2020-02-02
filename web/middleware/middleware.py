@@ -20,7 +20,7 @@ class WxMiddleware(Middleware):
         logger.debug("用户认证中间件， 正在认证")
         openid = self.request.headers.get('openid', None)
         if openid is None:
-            kw = {"code": 10006, "message": "用户认证数据缺失"}
+            kw = {"code": 10006, "message": "用户认证数据'openid'缺失"}
             return self.finish(kw)
         self.openid = openid    # 传入openid
         self.current_user = await get_user(self, openid)

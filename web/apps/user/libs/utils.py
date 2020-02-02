@@ -1,10 +1,12 @@
 #!/usr/bin/python
-# @Time  : 1/31/20
+# @Time  : 2/1/20
 # @Author: liyong
 import os
 import base64
 import re
 from logzero import logger
+from web.models.databases import CompanyUser
+from web.apps.base.status import StatusCode
 
 
 async def save_pic(source, target, filename):
@@ -35,3 +37,20 @@ async def save_pic(source, target, filename):
 
     return url
 
+
+def check_user_exist(user):
+    """判断一个用户是否注册了超过3个企业"""
+    if not user:
+        return {'status': True, 'existed': False}
+    query = CompanyUser.by_user_id(user.id)
+    if len(query) >= 3:
+        return {'status': False, 'msg': '您已注册超过3个企业', "code": StatusCode.exist_error.value}
+    return {'status': True, 'existed': True}
+
+
+def get_length(generator):
+    """获取迭代器长度"""
+    if hasattr(generator, "__len__"):
+        return len(generator)
+    else:
+        return sum(1 for _ in generator)
