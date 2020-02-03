@@ -126,22 +126,22 @@ class SariDataCollector(object):
 
     def run(self):
         self.log.info(f"Fetch Data Begin At : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        areas = self._fetch_data(self.area_url)
-        if areas:
-            records = self._clean_data(areas)
-            self._save_data(records)
+        # areas = self._fetch_data(self.area_url)
+        # if areas:
+        #     records = self._clean_data(areas)
+        #     self._save_data(records)
 
         overall = self._fetch_data(self.overall_url)
         if overall:
             self._save_data_overall(overall)
 
-        news = self._fetch_data(self.news_url)
-        if news:
-            self._save_data_news(news)
-
-        rumors = self._fetch_data(self.rumors_url)
-        if rumors:
-            self._save_data_rumors(rumors)
+        # news = self._fetch_data(self.news_url)
+        # if news:
+        #     self._save_data_news(news)
+        #
+        # rumors = self._fetch_data(self.rumors_url)
+        # if rumors:
+        #     self._save_data_rumors(rumors)
 
         self.log.info(f"Fetch Data End At : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 

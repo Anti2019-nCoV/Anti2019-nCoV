@@ -163,6 +163,8 @@ class SariOverall(ModelBase):
         else:
             logger.debug("头条 不存在 新增数据")
             try:
+                if kwargs.get('marquee'):
+                    kwargs.pop('marquee')
                 new_row = SariOverall(**kwargs)
                 dbSession.add(new_row)
                 dbSession.commit()
