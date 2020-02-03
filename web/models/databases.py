@@ -105,6 +105,9 @@ class SariOverall(ModelBase):
     summary = Column(TEXT, comment="汇总")
     countRemark = Column(String(255), comment="全国疫情信息概览")
     confirmedCount = Column(Integer, default=0, comment="确诊")
+    confirmedIncr = Column(Integer, default=0, comment="新增")
+    curedIncr = Column(Integer, default=0, comment="治愈新增")
+    deadIncr = Column(Integer, default=0, comment="死亡新增")
     suspectedCount = Column(Integer, default=0, comment="疑似感染人数")
     curedCount = Column(Integer, default=0, comment="治愈")
     deadCount = Column(Integer, default=0, comment="死亡")
@@ -118,10 +121,6 @@ class SariOverall(ModelBase):
     generalRemark = Column(TEXT, nullable=True, comment="备注信息")
     abroadRemark = Column(TEXT, nullable=True, comment="备注信息")
     updateTime = Column(Integer, nullable=True, comment="更新时间")
-    confirmed = Column(Integer, default=0, comment="确诊")
-    suspect = Column(Integer, default=0, comment="疑似感染人数")
-    cured = Column(Integer, default=0, comment="治愈")
-    death = Column(Integer, default=0, comment="死亡")
 
     @classmethod
     def by_id(cls, kid):
@@ -153,7 +152,8 @@ class SariOverall(ModelBase):
             logger.debug("头条 已经存在 更新数据")
             try:
                 for k, v in kwargs.items():
-                    setattr(row, k, v)
+                    if getattr(row, k):
+                        setattr(row, k, v)
                 dbSession.commit()
             except Exception as e:
                 logger.error("Update Error " + str(e))
@@ -184,11 +184,10 @@ class SariOverall(ModelBase):
             "remark4": self.remark4,
             "remark5": self.remark5,
             "generalRemark": self.generalRemark,
+            "confirmedIncr": self.confirmedIncr,
+            "curedIncr": self.curedIncr,
+            "deadIncr": self.deadIncr,
             "abroadRemark": self.abroadRemark,
-            "confirmed": self.confirmed,
-            "suspect": self.suspect,
-            "cured": self.cured,
-            "death": self.death,
             "updateTime": self._update_at
         }
 
