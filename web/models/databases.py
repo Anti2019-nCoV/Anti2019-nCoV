@@ -799,7 +799,7 @@ class EpidemicPublishModel(ModelBase):
         dbSession.commit()
 
     @classmethod
-    def update_by_city_publish_date(cls, **data):
+    def update_by_city(cls, **data):
         cityName = data.get('cityName')
         regionName = data.get('regionName')
         data['updateTime'] = datetime.now()
@@ -809,6 +809,9 @@ class EpidemicPublishModel(ModelBase):
             for k, v in data.items():
                 setattr(row, k, v)
             dbSession.commit()
+        else:
+            cls.add(**data)
+
 
     @classmethod
     def delete(cls, kid):

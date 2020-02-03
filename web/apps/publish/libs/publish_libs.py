@@ -7,7 +7,6 @@
 @Time :    2020/2/2 上午10:29
 """
 from logzero import logger
-
 from web.apps.base.status import StatusCode
 from web.models.form_validate import validate
 from web.models.databases import EpidemicPublishModel
@@ -20,7 +19,7 @@ async def add_publish(self, **kwargs):
     if not state:
         return {'status': False, 'msg': '数据入参验证失败', "code": StatusCode.params_error.value}
     try:
-        EpidemicPublishModel.add(**kwargs)
+        EpidemicPublishModel.update_by_city(**kwargs)
         return {'status': True, 'msg': '业务操作成功', "code": StatusCode.success.value}
     except Exception as e:
         logger.error(f"EpidemicPublishModel Add Error {str(e)}")
@@ -34,7 +33,7 @@ async def update_publish(self, **kwargs):
     if not state:
         return {'status': False, 'msg': '数据入参验证失败', "code": StatusCode.params_error.value}
     try:
-        EpidemicPublishModel.update_by_city_publish_date(**kwargs)
+        EpidemicPublishModel.update_by_city(**kwargs)
         return {'status': True, 'msg': '业务操作成功', "code": StatusCode.success.value}
     except Exception as e:
         logger.error(f"EpidemicPublishModel Update Error {str(e)}")
