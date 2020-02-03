@@ -64,7 +64,10 @@ async def records(self, location=None):
 
 async def news(self, page, page_size, position):
     rows = SariNews.paginate(page, page_size, position)
-    return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": to_json(rows)}
+    result = []
+    if rows:
+        result = to_json(rows)
+    return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": result}
 
 
 async def overalls(self, num=1):
@@ -72,7 +75,10 @@ async def overalls(self, num=1):
         rows = [SariOverall.by_lasted()]
     else:
         rows = SariOverall.by_limit(num)
-    return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": to_json(rows)}
+    result = []
+    if rows:
+        result = to_json(rows)
+    return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": result}
 
 
 async def rumors(self, num):
@@ -80,4 +86,7 @@ async def rumors(self, num):
         rows = SariRumors.all()
     else:
         rows = SariRumors.by_limit(int(num))
-    return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": to_json(rows)}
+    result = []
+    if rows:
+        result = to_json(rows)
+    return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": result}
