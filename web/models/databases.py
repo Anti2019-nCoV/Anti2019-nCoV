@@ -105,7 +105,10 @@ class SariOverall(ModelBase):
     summary = Column(TEXT, comment="汇总")
     countRemark = Column(String(255), comment="全国疫情信息概览")
     confirmedCount = Column(Integer, default=0, comment="确诊")
+    seriousCount = Column(Integer, default=0, comment="确诊")
     confirmedIncr = Column(Integer, default=0, comment="新增")
+    suspectedIncr = Column(Integer, default=0, comment="新增")
+    seriousIncr = Column(Integer, default=0, comment="新增")
     curedIncr = Column(Integer, default=0, comment="治愈新增")
     deadIncr = Column(Integer, default=0, comment="死亡新增")
     suspectedCount = Column(Integer, default=0, comment="疑似感染人数")
@@ -187,6 +190,9 @@ class SariOverall(ModelBase):
             "confirmedIncr": self.confirmedIncr,
             "curedIncr": self.curedIncr,
             "deadIncr": self.deadIncr,
+            "seriousIncr": self.seriousIncr,
+            "seriousCount": self.seriousCount,
+            "suspectedIncr": self.suspectedIncr,
             "abroadRemark": self.abroadRemark,
             "updateTime": self._update_at
         }
