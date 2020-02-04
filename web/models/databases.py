@@ -143,8 +143,8 @@ class SariOverall(ModelBase):
             tmp = time.localtime(self.updateTime)
             return time.strftime("%Y-%m-%d %H:%M:%S", tmp)
 
-    @property
-    def keys(self):
+    @staticmethod
+    def keys():
         return ["infectSource",
                 "passWay",
                 "dailyPic",
@@ -182,7 +182,7 @@ class SariOverall(ModelBase):
             logger.debug("头条 已经存在 更新数据")
             try:
                 for k in kwargs.keys():
-                    if k not in cls.keys:
+                    if k not in SariOverall.keys():
                         kwargs.pop(k)
                 for k, v in kwargs.items():
                     setattr(row, k, v)
@@ -193,7 +193,7 @@ class SariOverall(ModelBase):
             logger.debug("头条 不存在 新增数据")
             try:
                 for k in kwargs.keys():
-                    if k not in cls.keys:
+                    if k not in SariOverall.keys():
                         kwargs.pop(k)
                 new_row = SariOverall(**kwargs)
                 dbSession.add(new_row)
