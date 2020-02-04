@@ -182,7 +182,7 @@ class SariOverall(ModelBase):
             logger.debug("头条 已经存在 更新数据")
             try:
                 tmp = kwargs
-                for k in tmp.keys():
+                for k in kwargs.keys():
                     if k not in SariOverall.keys():
                         tmp.pop(k)
                 for k, v in tmp.items():
@@ -194,7 +194,7 @@ class SariOverall(ModelBase):
             logger.debug("头条 不存在 新增数据")
             try:
                 tmp = kwargs
-                for k in tmp.keys():
+                for k in kwargs.keys():
                     if k not in SariOverall.keys():
                         tmp.pop(k)
                 new_row = SariOverall(**tmp)
