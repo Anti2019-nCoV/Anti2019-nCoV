@@ -143,6 +143,33 @@ class SariOverall(ModelBase):
             tmp = time.localtime(self.updateTime)
             return time.strftime("%Y-%m-%d %H:%M:%S", tmp)
 
+    @property
+    def keys(self):
+        return ["infectSource",
+                "passWay",
+                "dailyPic",
+                "summary",
+                "countRemark",
+                "confirmedCount",
+                "suspectedCount",
+                "curedCount",
+                "deadCount",
+                "virus",
+                "remark1",
+                "remark2",
+                "remark3",
+                "remark4",
+                "remark5",
+                "generalRemark",
+                "confirmedIncr",
+                "curedIncr",
+                "deadIncr",
+                "seriousIncr",
+                "seriousCount",
+                "suspectedIncr",
+                "abroadRemark",
+                "updateTime"]
+
     @classmethod
     def update_and_insert(cls, **kwargs):
         infectSource = kwargs.get('infectSource')
@@ -154,17 +181,20 @@ class SariOverall(ModelBase):
         if row:
             logger.debug("头条 已经存在 更新数据")
             try:
+                for k in kwargs.keys():
+                    if k not in cls.keys:
+                        kwargs.pop(k)
                 for k, v in kwargs.items():
-                    if getattr(row, k):
-                        setattr(row, k, v)
+                    setattr(row, k, v)
                 dbSession.commit()
             except Exception as e:
                 logger.error("Update Error " + str(e))
         else:
             logger.debug("头条 不存在 新增数据")
             try:
-                if kwargs.get('marquee'):
-                    kwargs.pop('marquee')
+                for k in kwargs.keys():
+                    if k not in cls.keys:
+                        kwargs.pop(k)
                 new_row = SariOverall(**kwargs)
                 dbSession.add(new_row)
                 dbSession.commit()
@@ -332,9 +362,9 @@ class SariRumors(ModelBase):
 
 class RoleTypeEnum(Enum):
     """角色类型"""
-    member = 0      # 普通用户
-    admin_rw = 1    # 管理员，可读写（针对用户操作）
-    admin_r = 2     # 管理员，只读
+    member = 0  # 普通用户
+    admin_rw = 1  # 管理员，可读写（针对用户操作）
+    admin_r = 2  # 管理员，只读
 
 
 class CompanyUser(ModelBase):
@@ -811,7 +841,6 @@ class EpidemicPublishModel(ModelBase):
             dbSession.commit()
         else:
             cls.add(**data)
-
 
     @classmethod
     def delete(cls, kid):
