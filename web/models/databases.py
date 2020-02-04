@@ -181,10 +181,10 @@ class SariOverall(ModelBase):
         if row:
             logger.debug("头条 已经存在 更新数据")
             try:
-                tmp = kwargs
+                tmp = dict()
                 for k in kwargs.keys():
-                    if k not in SariOverall.keys():
-                        tmp.pop(k)
+                    if k in SariOverall.keys():
+                        tmp.setdefault(k, kwargs.get(k))
                 for k, v in tmp.items():
                     setattr(row, k, v)
                 dbSession.commit()
@@ -193,10 +193,10 @@ class SariOverall(ModelBase):
         else:
             logger.debug("头条 不存在 新增数据")
             try:
-                tmp = kwargs
+                tmp = dict()
                 for k in kwargs.keys():
-                    if k not in SariOverall.keys():
-                        tmp.pop(k)
+                    if k in SariOverall.keys():
+                        tmp.setdefault(k, kwargs.get(k))
                 new_row = SariOverall(**tmp)
                 dbSession.add(new_row)
                 dbSession.commit()
