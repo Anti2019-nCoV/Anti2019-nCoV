@@ -12,9 +12,11 @@ from web.utils.cache import jsapi_ticket
 from web.utils.tools import machine_ip
 from web.utils.z_logger import init_logger
 from tasks.collector import SariDataCollector, run
+from web.task import fetch_data
 
 define("t", default=False, help="create table", type=bool)
 define("init", default=False, help="init data", type=bool)
+define("region", default=False, help="region data", type=bool)
 define("cache", default=False, help="cache wechat data", type=bool)
 define("filename", default=None, help="log file", type=str)
 define("level", default='DEBUG', help="log level", type=str)
@@ -49,6 +51,10 @@ def server():
         logger.info("准备微信参数缓存")
         jsapi_ticket()
         logger.info("微信参数缓存完成")
+    elif options.region:
+        logger.info("准备地区数据")
+        fetch_data()
+        logger.info("准备地区数据")
     else:
         logger.info("启动疫情数据定时采集开始启动")
         timer = TaskTimer()
