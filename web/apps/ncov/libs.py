@@ -14,6 +14,13 @@ import httpx as requests
 from web.settings import api_url
 
 
+def format_time(t):
+    new_time = int(str(t)[:-3])
+    tmp = time.localtime(new_time)
+    new_update = time.strftime("%Y-%m-%d %H:%M:%S", tmp)
+    return new_update
+
+
 def parse_single_data(rows, location=None):
     result = dict(confirmedCount=0,
                   suspectedCount=0,
@@ -54,7 +61,13 @@ async def records(self, latest=1, province=None):
             result = content.get('results') if content.get('success') else []
     except Exception as e:
         logger.error(f"news fetch error {e}")
-    return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": result}
+
+    new_result = []
+    for res in result:
+        if res.get('updateTime'):
+            res['updateTime'] = format_time(res.get('updateTime'))
+        new_result.append(res)
+    return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": new_result}
 
 
 async def oversea(self):
@@ -70,6 +83,8 @@ async def oversea(self):
     new_result = []
     for res in result:
         if res['country'] != '中国':
+            if res.get('updateTime'):
+                res['updateTime'] = format_time(res.get('updateTime'))
             new_result.append(res)
     return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": new_result}
 
@@ -86,6 +101,12 @@ async def news(self, page_size, position):
             result = content.get('results') if content.get('success') else []
     except Exception as e:
         logger.error(f"news fetch error {e}")
+
+    new_result = []
+    for res in result:
+        if res.get('pubDate'):
+            res['pubDate'] = format_time(res.get('pubDate'))
+        new_result.append(res)
     return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": result}
 
 
@@ -102,10 +123,7 @@ async def overalls(self, num=1):
     new_result = []
     for res in result:
         if res.get('updateTime'):
-            new_time = int(str(res.get('updateTime'))[:-3])
-            tmp = time.localtime(new_time)
-            new_update = time.strftime("%Y-%m-%d %H:%M:%S", tmp)
-            res['updateTime'] = new_update
+            res['updateTime'] = format_time(res.get('updateTime'))
         new_result.append(res)
     return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": new_result}
 
@@ -119,7 +137,13 @@ async def rumors(self, num, rumorType):
             result = content.get('results') if content.get('success') else []
     except Exception as e:
         logger.error(f"overall fetch error {e}")
-    return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": result}
+
+    new_result = []
+    for res in result:
+        if res.get('updateTime'):
+            res['updateTime'] = format_time(res.get('updateTime'))
+        new_result.append(res)
+    return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": new_result}
 
 
 
