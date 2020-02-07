@@ -110,10 +110,10 @@ async def overalls(self, num=1):
     return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": new_result}
 
 
-async def rumors(self, num):
+async def rumors(self, num, rumorType):
     result = []
     try:
-        response = await requests.get(api_url + '/rumors', params={"num": num})
+        response = await requests.get(api_url + '/rumors', params={"num": num, "rumorType": rumorType})
         if 300 > response.status_code >= 200:
             content = response.json()
             result = content.get('results') if content.get('success') else []

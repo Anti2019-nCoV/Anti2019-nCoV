@@ -70,7 +70,8 @@ class NonCoVSariRumorsHandler(BaseRequestHandler, ABC):
     async def get(self):
         response = dict()
         num = self.get_argument('num', '10')
-        result = await rumors(self, num)
+        rumorType = self.get_argument('rumorType', '0')
+        result = await rumors(self, num, rumorType)
         response['code'] = result['code']
         response['message'] = result['msg']
         if result['status']:
