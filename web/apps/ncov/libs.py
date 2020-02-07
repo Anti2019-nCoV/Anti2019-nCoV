@@ -6,9 +6,13 @@
 @Software: PyCharm
 @Time :    2020/1/28 下午4:38
 """
+from logzero import logger
+
 from web.models.databases import SariRecord, SariNews, SariOverall, SariRumors
 from web.apps.base.status import StatusCode
 from web.utils.date2json import to_json
+import httpx as requests
+from web.settings import api_url
 
 
 def parse_single_data(rows, location=None):
@@ -39,54 +43,58 @@ def parse_single_data(rows, location=None):
     return result
 
 
-async def record_by_province(self, province):
-    rows = SariRecord.by_province(province)
-    result = parse_single_data(to_json(rows))
-    return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": result}
-
-
-async def records(self, location=None):
-    if location:
-        rows = SariRecord.by_country()
-    else:
-        rows = SariRecord.all()
-    need_parse = dict()
-    result = list()
-    for row in to_json(rows):
-        if not need_parse.get(row.get('provinceName')):
-            need_parse.setdefault(row.get('provinceName'), [row])
-        else:
-            need_parse[row.get('provinceName')].append(row)
-    for v in need_parse.values():
-        result.append(parse_single_data(v, location))
-    return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": result}
-
-
-async def news(self, page, page_size, position):
-    rows = SariNews.paginate(page, page_size, position)
+async def records(self, latest=1, province=None):
     result = []
-    if rows:
-        result = to_json(rows)
+    try:
+        params = {"latest": latest}
+        if province:
+            params["province"] = province
+        response = await requests.get(api_url + '/area', params=params)
+        if 300 > response.status_code >= 200:
+            content = response.json()
+            result = content.get('results') if content.get('success') else []
+    except Exception as e:
+        logger.error(f"news fetch error {e}")
+    return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": result}
+
+
+async def news(self, page_size, position):
+    result = []
+    try:
+        params = {"num": page_size}
+        if position:
+            params["province"] = position
+        response = await requests.get(api_url + '/news', params=params)
+        if 300 > response.status_code >= 200:
+            content = response.json()
+            result = content.get('results') if content.get('success') else []
+    except Exception as e:
+        logger.error(f"news fetch error {e}")
     return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": result}
 
 
 async def overalls(self, num=1):
-    if num == 1:
-        rows = [SariOverall.by_lasted()]
-    else:
-        rows = SariOverall.by_limit(num)
     result = []
-    if rows:
-        result = to_json(rows)
+    try:
+        response = await requests.get(api_url + '/overall', params={"latest": num})
+        if 300 > response.status_code >= 200:
+            content = response.json()
+            result = content.get('results') if content.get('success') else []
+    except Exception as e:
+        logger.error(f"overall fetch error {e}")
     return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": result}
 
 
 async def rumors(self, num):
-    if num == 'all':
-        rows = SariRumors.all()
-    else:
-        rows = SariRumors.by_limit(int(num))
     result = []
-    if rows:
-        result = to_json(rows)
+    try:
+        response = await requests.get(api_url + '/rumors', params={"num": num})
+        if 300 > response.status_code >= 200:
+            content = response.json()
+            result = content.get('results') if content.get('success') else []
+    except Exception as e:
+        logger.error(f"overall fetch error {e}")
     return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": result}
+
+
+

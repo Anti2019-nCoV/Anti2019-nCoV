@@ -9,7 +9,7 @@
 from abc import ABC
 from web.apps.base.controller import BaseRequestHandler
 from web.apps.base.status import StatusCode
-from web.apps.ncov.libs import record_by_province, records, news, overalls, rumors
+from web.apps.ncov.libs import records, news, overalls, rumors
 
 
 class NonCoVHandler(BaseRequestHandler, ABC):
@@ -17,10 +17,8 @@ class NonCoVHandler(BaseRequestHandler, ABC):
     async def get(self):
         response = dict(code=StatusCode.success.value)
         province = self.get_argument('province', None)
-        if province:
-            result = await record_by_province(self, province)
-        else:
-            result = await records(self)
+        latest = int(self.get_argument('latest', '1'))
+        result = await records(self, latest, province)
         response['code'] = result['code']
         response['message'] = result['msg']
         if result['status']:
@@ -44,10 +42,9 @@ class NonCoVNewsHandler(BaseRequestHandler, ABC):
 
     async def get(self):
         response = dict()
-        page = int(self.get_argument('page', '1'))
         page_size = int(self.get_argument('page_size', '10'))
         position = self.get_argument('province', None)
-        result = await news(self, page, page_size, position)
+        result = await news(self, page_size, position)
         response['code'] = result['code']
         response['message'] = result['msg']
         if result['status']:
