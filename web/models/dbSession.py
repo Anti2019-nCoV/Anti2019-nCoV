@@ -22,3 +22,9 @@ engine = create_engine(DB_URI, echo=False)
 Session = sessionmaker(bind=engine)
 dbSession = Session()
 ModelBase = declarative_base(engine)
+
+
+def reconnect_db():
+    tmp = create_engine(DB_URI, echo=False)
+    Sess = sessionmaker(bind=tmp)
+    return Sess()
