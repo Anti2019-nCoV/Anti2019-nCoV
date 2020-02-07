@@ -6,11 +6,10 @@
 @Software: PyCharm
 @Time :    2020/1/28 下午4:38
 """
-from logzero import logger
+import time
 
-from web.models.databases import SariRecord, SariNews, SariOverall, SariRumors
+from logzero import logger
 from web.apps.base.status import StatusCode
-from web.utils.date2json import to_json
 import httpx as requests
 from web.settings import api_url
 
@@ -58,6 +57,23 @@ async def records(self, latest=1, province=None):
     return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": result}
 
 
+async def oversea(self):
+    result = []
+    try:
+        params = {"latest": 1}
+        response = await requests.get(api_url + '/area', params=params)
+        if 300 > response.status_code >= 200:
+            content = response.json()
+            result = content.get('results') if content.get('success') else []
+    except Exception as e:
+        logger.error(f"news fetch error {e}")
+    new_result = []
+    for res in result:
+        if res['country'] != '中国':
+            new_result.append(res)
+    return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": new_result}
+
+
 async def news(self, page_size, position):
     result = []
     try:
@@ -82,7 +98,16 @@ async def overalls(self, num=1):
             result = content.get('results') if content.get('success') else []
     except Exception as e:
         logger.error(f"overall fetch error {e}")
-    return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": result}
+
+    new_result = []
+    for res in result:
+        if res.get('updateTime'):
+            new_time = int(str(res.get('updateTime'))[:-3])
+            tmp = time.localtime(new_time)
+            new_update = time.strftime("%Y-%m-%d %H:%M:%S", tmp)
+            res['updateTime'] = new_update
+        new_result.append(res)
+    return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": new_result}
 
 
 async def rumors(self, num):

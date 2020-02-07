@@ -9,7 +9,7 @@
 from abc import ABC
 from web.apps.base.controller import BaseRequestHandler
 from web.apps.base.status import StatusCode
-from web.apps.ncov.libs import records, news, overalls, rumors
+from web.apps.ncov.libs import records, news, overalls, rumors, oversea
 
 
 class NonCoVHandler(BaseRequestHandler, ABC):
@@ -30,7 +30,7 @@ class NonCoVOverSeaHandler(BaseRequestHandler, ABC):
 
     async def get(self):
         response = dict(code=StatusCode.success.value)
-        result = await records(self, True)
+        result = await oversea(self)
         response['code'] = result['code']
         response['message'] = result['msg']
         if result['status']:
