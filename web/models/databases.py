@@ -9,9 +9,14 @@
 from datetime import datetime, date
 from sqlalchemy import Column, Integer, String, TEXT, ForeignKey, Boolean, Enum, DateTime, and_, or_, cast, DATE
 from sqlalchemy.orm import relationship
-from web.models.dbSession import ModelBase, dbSession
+from web.models.dbSession import ModelBase, dbSession as db, reconnect_db
 import time
 from logzero import logger
+
+if db.is_active:
+    dbSession = db
+else:
+    dbSession = reconnect_db()
 
 
 def format_time(_time):
