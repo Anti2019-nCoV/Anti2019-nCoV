@@ -65,9 +65,10 @@ async def records(self, latest=1, province=None):
     new_result = []
     for res in result:
         if 'country' in res.keys():
-            if res.get('updateTime'):
-                res['updateTime'] = format_time(res.get('updateTime'))
-            new_result.append(res)
+            if res['country'] != '中国':
+                if res.get('updateTime'):
+                    res['updateTime'] = format_time(res.get('updateTime'))
+                new_result.append(res)
     return {"status": True, "code": StatusCode.success.value, "msg": "获取成功", "data": new_result}
 
 
